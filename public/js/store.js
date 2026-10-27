@@ -19,7 +19,9 @@ export const state = {
   tv: params.has('tv'),
   view: oneOf(saved('view'), ['wall', 'grid'], 'wall'),
   order: oneOf(saved('order'), ['new', 'mix', 'random'], 'new'), // newest first: new work sets the energy
-  show: oneOf(saved('show'), ['work', 'inspiration', 'all'], 'work'), // our work by default; inspiration has its own section
+  // all: all our work, public and private (the default); public: only what's fine
+  // for the TVs and clients; inspiration: work that isn't ours, in its own section
+  show: oneOf(saved('show'), ['all', 'public', 'inspiration'], 'all'),
   video: saved('video') !== 'off', // some people find moving work on screen distracting
   colour: hexOrNull(saved('colour')), // sort by closeness to this colour, when set
 };
@@ -44,8 +46,9 @@ export const onTvs = (p) => !p.private;
 export function matches(p) {
   if (state.tv && !onTvs(p)) return false;
   if (!state.video && p.kind === 'video') return false;
-  if (state.show === 'work' && isInspiration(p)) return false;
-  if (state.show === 'inspiration' && !isInspiration(p)) return false;
+  if (state.show === 'inspiration') return isInspiration(p);
+  if (isInspiration(p)) return false;
+  if (state.show === 'public' && p.private) return false;
   return true;
 }
 

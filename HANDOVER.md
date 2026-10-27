@@ -46,7 +46,8 @@ So nothing gets undone by accident:
 - **The wall:** fills the screen and runs well past it, with the newest work in the middle. It's arranged fresh on every load, and you can't pan or zoom past the edge of the work.
 - **No sticky notes.** Comments live in the expanded view of a piece, with a small brand-coloured dot on any piece that has comments.
 - **Inspiration** (work that isn't ours) is its own section, off the main wall by default.
-- **Defaults:** wall view, newest first, our work, public and private, video on. Video can be turned off per person.
+- **Show:** All (our work, public and private: the default), Public, or Inspiration.
+- **Defaults:** wall view, newest first, All, video on. Video can be turned off per person.
 - **Refresh:** every five minutes the wall is redrawn with the latest work (on people's own screens only once they're idle).
 - **Colour:** the wheel *sorts* by any colour; it doesn't filter.
 - **Palette cards:** at most five, and only for client work.

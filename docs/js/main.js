@@ -93,7 +93,9 @@ function updateChrome(list) {
     $('#empty').hidden = list.length > 0;
     $('#empty-text').replaceChildren(...(inspiration
       ? ['No ', h('em', {}, 'inspiration'), ' pinned yet.']
-      : filteredOut
+      : state.show === 'public' && !filteredOut
+        ? ['No ', h('em', {}, 'public'), ' work yet.']
+        : filteredOut
         ? ['Nothing to show', h('br'), 'with video ', h('em', {}, 'off'), '.']
         : ['The wall’s bare.', h('br'), 'Pin the ', h('em', {}, 'first'), ' thing.']));
     $('#empty-add').textContent = inspiration ? 'Add inspiration' : 'Add work';
@@ -101,7 +103,9 @@ function updateChrome(list) {
     $('#empty-clear').textContent = 'Turn video on';
   }
 
-  $('#section').hidden = state.show !== 'inspiration' || state.tv;
+  // In Public or Inspiration, a label by the logo says so, with a way back to All.
+  $('#section').hidden = state.show === 'all' || state.tv;
+  $('#section-name').textContent = state.show;
   $('#video-switch').checked = state.video;
 
   const toGrid = state.view === 'wall';
@@ -199,7 +203,7 @@ $('#home-copy').addEventListener('click', async () => {
 });
 $('#empty-clear').addEventListener('click', () => setVideo(true));
 $('#empty-add').addEventListener('click', () => openMedia());
-$('#section').addEventListener('click', () => { remember('show', 'work'); render(); });
+$('#section').addEventListener('click', () => { remember('show', 'all'); render(); });
 
 function setVideo(on) {
   remember('video', on ? null : 'off'); // stored as 'off' or nothing…
@@ -380,8 +384,10 @@ function openMedia(files = []) {
   if (!media.busy) setMediaStatus('');
   addFiles(files);
   if (!mediaSheet.open) {
-    $('#media-form').elements.visibility.value = 'private'; // private unless someone says otherwise
-    $('#visibility-note').textContent = VISIBILITY.private;
+    // private unless someone says otherwise (or they're looking at public work)
+    const vis = state.show === 'public' ? 'public' : 'private';
+    $('#media-form').elements.visibility.value = vis;
+    $('#visibility-note').textContent = VISIBILITY[vis];
     // in the inspiration section, what you add is inspiration
     $('#media-form').elements.origin.value = state.show === 'inspiration' ? 'inspiration' : 'studio';
     showOrigin();
@@ -504,7 +510,7 @@ $('#media-form').addEventListener('submit', async (e) => {
     mediaSheet.close();
     // Show it where it belongs: inspiration added from our work (or the other way) switches section.
     if (last && !matches(last)) {
-      remember('show', isInspiration(last) ? 'inspiration' : 'work');
+      remember('show', isInspiration(last) ? 'inspiration' : 'all');
       remember('colour', null);
       if (!state.video && last.kind === 'video') setVideo(true);
       render();
