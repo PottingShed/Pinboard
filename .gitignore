@@ -1,5 +1,5 @@
-node_modules/
-.wrangler/
+/node_modules/
+/.wrangler/
 .dev.vars
-data/
+/data/
 .DS_Store
