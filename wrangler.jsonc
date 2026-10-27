@@ -1,0 +1,31 @@
+// Pinboard on Cloudflare: a Worker for the API, R2 for images and video, D1 for
+// the pins, and a Durable Object that pushes live updates to every screen.
+// Everything here fits in Cloudflare's free plan.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pinboard",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-01",
+
+  // The site itself. Anything that isn't a file in public/ goes to the Worker.
+  "assets": { "directory": "./public" },
+
+  "d1_databases": [
+    { "binding": "DB", "database_name": "pinboard", "database_id": "bfc2edde-1f6c-492a-aeb3-f9eb9e2572ca", "migrations_dir": "migrations" }
+  ],
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "pinboard-files" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "HUB", "class_name": "Hub" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
+
+  "vars": {
+    "PINBOARD_STUDIOS": "Guernsey,Jersey",
+    "MAX_UPLOAD_MB": "250"
+  },
+  // Optional passcode: `npx wrangler secret put PINBOARD_PASSCODE`
+
+  "observability": { "enabled": true }
+}
