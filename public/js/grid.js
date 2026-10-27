@@ -5,7 +5,7 @@
 
 import { h, clamp, rand, sleep, reduceMotion } from './util.js';
 import { state } from './store.js';
-import { buildPiece, buildPalette, refreshDot, popDot, arrive } from './pieces.js';
+import { buildPiece, buildPalette, refreshDot, popDot, arrive, wake, rest } from './pieces.js';
 
 export function createGrid(root, { onTap, onColours, onInteract }) {
   let cols = [];
@@ -20,6 +20,12 @@ export function createGrid(root, { onTap, onColours, onInteract }) {
   let hovering = false;
   let pace = 1;
   let list = [];
+
+  // Tiles load as they come within a screen and a half of view, and let go
+  // once they're further away than that, so a long drifting grid stays light.
+  const sight = new IntersectionObserver((entries) => {
+    for (const e of entries) (e.isIntersecting ? wake : rest)(e.target);
+  }, { root, rootMargin: '150% 0px' });
 
   const videos = new IntersectionObserver((entries) => {
     for (const e of entries) {
@@ -41,10 +47,11 @@ export function createGrid(root, { onTap, onColours, onInteract }) {
     if (p.kind === 'gap') return gapTile(p.id, hgt, rep);
     const el = p.kind === 'palette'
       ? buildPalette(p, colW, hgt, { fixings: false })
-      : buildPiece(p, colW, hgt, { fixings: false, lazy: true, onColours });
+      : buildPiece(p, colW, hgt, { fixings: false, defer: true, onColours });
     el.classList.add('tile');
     el.style.marginBottom = `${gap}px`;
     el.dataset.rep = rep;
+    if (p.kind !== 'palette') sight.observe(el);
     for (const v of el.querySelectorAll('video')) videos.observe(v);
     return el;
   }
@@ -55,6 +62,7 @@ export function createGrid(root, { onTap, onColours, onInteract }) {
 
   function renderCol(c) {
     for (const v of c.track.querySelectorAll('video')) videos.unobserve(v);
+    for (const t of c.track.querySelectorAll('.tile')) sight.unobserve(t);
     const reps = drifting ? Math.ceil(vh / Math.max(1, c.H)) + 1 : 1;
     const frag = document.createDocumentFragment();
     for (let r = 0; r < reps; r++) for (const p of c.items) frag.append(tile(p, r));
@@ -68,6 +76,8 @@ export function createGrid(root, { onTap, onColours, onInteract }) {
   function show(next) {
     list = next;
     stop();
+    sight.disconnect();
+    videos.disconnect();
     vw = root.clientWidth || innerWidth;
     vh = root.clientHeight || innerHeight;
     const small = vw < 720;

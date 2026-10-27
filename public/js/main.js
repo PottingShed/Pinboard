@@ -19,8 +19,6 @@ const grid = createGrid($('#grid'), hooks);
 let view = wall;
 let showing = []; // the pieces in the current arrangement, in order (for next/previous)
 
-// The most each view takes; the wall uses as many as it needs to fill the screen.
-const limit = () => (state.view === 'grid' ? 180 : 200);
 
 function setAccent() {
   const now = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim().toUpperCase();
@@ -76,7 +74,8 @@ function withPalettes(list) {
 // ------------------------------------------------------------------ drawing the wall
 
 function render() {
-  const list = selection(limit());
+  // Everything that matches goes up: the views only load media near the screen.
+  const list = selection();
   showing = list;
   wall.root.hidden = state.view !== 'wall';
   grid.root.hidden = state.view !== 'grid';
@@ -780,7 +779,7 @@ addEventListener('keydown', (e) => {
     closePops();
     return;
   }
-  if (e.target.closest('input, textarea, [contenteditable], canvas') || $('dialog[open]')) return;
+  if (e.target.closest?.('input, textarea, [contenteditable], canvas') || $('dialog[open]')) return;
   const onWall = state.view === 'wall';
   switch (e.key) {
     case 'Escape':

@@ -44,7 +44,8 @@ export function buildPiece(p, w, hgt, { fixings = true, lazy = false, defer = fa
         frame.src = poster;
       }
     }
-    v.src = fileUrl(p.src);
+    if (defer) v.dataset.video = fileUrl(p.src);
+    else v.src = fileUrl(p.src);
     paper.append(v);
   }
   el.append(paper);
@@ -89,12 +90,32 @@ export function buildPalette(card, w, hgt, { fixings = true } = {}) {
   return el;
 }
 
-// Load a deferred piece's image or poster frame.
+// Load a deferred piece's image, or its video and poster frame, as it comes near the screen…
 export function wake(el) {
   const img = el.querySelector(':scope > .pin__paper > img[data-src]');
   if (img) { img.src = img.dataset.src; delete img.dataset.src; }
-  const v = el.querySelector(':scope > .pin__paper > video[data-poster]');
-  if (v) { v.poster = v.dataset.poster; delete v.dataset.poster; }
+  const v = el.querySelector(':scope > .pin__paper > video');
+  if (v?.dataset.poster) { v.poster = v.dataset.poster; delete v.dataset.poster; }
+  if (v?.dataset.video) { v.src = v.dataset.video; delete v.dataset.video; }
+}
+
+// …and let it go again once it's well out of view, so a wall of thousands of
+// pieces (or a TV left on for a week) only ever holds what's around the screen.
+// Coming back is quick: the files are in the browser's cache.
+export function rest(el) {
+  const img = el.querySelector(':scope > .pin__paper > img[src]');
+  if (img) {
+    img.dataset.src = img.getAttribute('src');
+    img.removeAttribute('src');
+    img.classList.remove('loaded');
+  }
+  const v = el.querySelector(':scope > .pin__paper > video[src]');
+  if (v) {
+    v.pause();
+    v.dataset.video = v.getAttribute('src');
+    v.removeAttribute('src');
+    v.load(); // drops what it had buffered
+  }
 }
 
 // A dot in the corner, in the colour of the latest comment, counting them.
