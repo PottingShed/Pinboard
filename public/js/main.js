@@ -30,6 +30,17 @@ function setAccent() {
   const accent = choices[Math.floor(Math.random() * choices.length)];
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--on-accent', DARK_COLOURS.has(accent) ? '#F2F2F2' : '#171717');
+  setCursor(accent);
+}
+
+// The pointer is a little dot in the logo's colour, with a hairline so it
+// still shows on work of the same colour. Holding space makes it a ring.
+function setCursor(colour) {
+  const svg = (shape) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">${shape}</svg>`)}") 12 12`;
+  const root = document.documentElement;
+  root.style.setProperty('--dot', `${svg(`<circle cx="12" cy="12" r="6" fill="${colour}" stroke="rgba(23,23,23,0.4)"/>`)}, auto`);
+  root.style.setProperty('--ring', `${svg(`<circle cx="12" cy="12" r="9" fill="none" stroke="rgba(23,23,23,0.4)" stroke-width="4"/><circle cx="12" cy="12" r="9" fill="none" stroke="${colour}" stroke-width="2.5"/>`)}, grab`);
+  root.classList.add('dotted');
 }
 
 // Hover the logo and it takes another brand colour while its leaves hop, left
@@ -566,7 +577,9 @@ function openFocus(p) {
   renderSource(p);
   $('#focus-title').textContent = p.title || 'Untitled';
   // The piece's colours, sized by how much of it they cover. Tap one to sort by it.
-  const palette = (p.colors?.palette || []).map((e) => (typeof e === 'string' ? { c: e, w: 1 } : e));
+  // One colour on its own says little, so it isn't shown.
+  let palette = (p.colors?.palette || []).map((e) => (typeof e === 'string' ? { c: e, w: 1 } : e));
+  if (palette.length < 2) palette = [];
   $('#focus-palette').replaceChildren(...palette.map(({ c, w }) => h('button', {
     type: 'button',
     style: `--c:${c};flex-grow:${w}`,

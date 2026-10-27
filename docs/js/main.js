@@ -1,7 +1,7 @@
 // Pinboard: ties the two views, the menus, adding work, comments, live
 // updates and TV mode together.
 
-import { $, $$, h, sleep, api, toast, fmtDate, fileUrl, hash, PREVIEW } from './util.js';
+import { $, $$, h, sleep, api, toast, fmtDate, fileUrl, hash, reduceMotion, PREVIEW } from './util.js';
 import { state, remember, childrenOf, selection, matches, fromWebsite, isInspiration, onTvs } from './store.js';
 import { analyse, hsv, toHex, fromHex, toHsv } from './colour.js';
 import { DARK_COLOURS, describe } from './pieces.js';
@@ -30,6 +30,45 @@ function setAccent() {
   const accent = choices[Math.floor(Math.random() * choices.length)];
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--on-accent', DARK_COLOURS.has(accent) ? '#F2F2F2' : '#171717');
+  setCursor(accent);
+}
+
+// The pointer is a little dot in the logo's colour, with a hairline so it
+// still shows on work of the same colour. Holding space makes it a ring.
+function setCursor(colour) {
+  const svg = (shape) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">${shape}</svg>`)}") 12 12`;
+  const root = document.documentElement;
+  root.style.setProperty('--dot', `${svg(`<circle cx="12" cy="12" r="6" fill="${colour}" stroke="rgba(23,23,23,0.4)"/>`)}, auto`);
+  root.style.setProperty('--ring', `${svg(`<circle cx="12" cy="12" r="9" fill="none" stroke="rgba(23,23,23,0.4)" stroke-width="4"/><circle cx="12" cy="12" r="9" fill="none" stroke="${colour}" stroke-width="2.5"/>`)}, grab`);
+  root.classList.add('dotted');
+}
+
+// Hover the logo and it takes another brand colour while its leaves hop, left
+// to right. A hop always finishes before the next one starts.
+const logo = $('.logo');
+const leaves = $$('.leaf', logo);
+logo.addEventListener('pointerenter', (e) => {
+  if (e.pointerType !== 'mouse' || state.tv) return;
+  setAccent();
+  logo.classList.add('logo--hop');
+});
+leaves.at(-1).addEventListener('animationend', () => logo.classList.remove('logo--hop'));
+
+// Going in and out of TV mode the logo glides between its corner and the
+// middle of the screen: measure it, make the change, then play it back from
+// where it was (as a transform, so it stays smooth while the wall redraws).
+function glideLogo(change) {
+  const from = logo.getBoundingClientRect();
+  for (const a of logo.getAnimations()) if (a.id === 'glide') a.cancel();
+  change();
+  if (reduceMotion) return;
+  const to = logo.getBoundingClientRect();
+  const m = new DOMMatrix(getComputedStyle(logo).transform);
+  const x = to.left - m.e, y = to.top - m.f; // where it sits before its own transform
+  logo.animate([
+    { transformOrigin: '0 0', transform: `translate(${from.left - x}px, ${from.top - y}px) scale(${from.width / to.width})` },
+    { transformOrigin: '0 0', transform: `translate(${m.e}px, ${m.f}px)` },
+  ], { id: 'glide', duration: 1200, easing: 'cubic-bezier(0.65, 0, 0.25, 1)' });
 }
 
 // ------------------------------------------------------------------ palette cards
@@ -312,38 +351,7 @@ $('#wheel-light').addEventListener('input', (e) => {
 $('#wheel-light').addEventListener('change', () => sortByColour(wheelHex()));
 $('#colour-clear').addEventListener('click', () => { closePops(); clearColour(); });
 
-// ------------------------------------------------------------------ hovering, tapping
-
-const hover = $('#hover');
-function moveHover(e) {
-  const x = Math.min(e.clientX + 16, innerWidth - hover.offsetWidth - 8);
-  const y = e.clientY + 22 + hover.offsetHeight > innerHeight ? e.clientY - hover.offsetHeight - 12 : e.clientY + 22;
-  hover.style.transform = `translate(${x}px, ${y}px)`;
-}
-for (const root of [wall.root, grid.root]) {
-  root.addEventListener('pointerover', (e) => {
-    if (e.pointerType !== 'mouse' || state.tv) return;
-    const el = e.target.closest('[data-id]');
-    const id = el?.dataset.id;
-    const card = palettes.get(id);
-    const p = state.pins.get(id);
-    if (!p && !card) { hover.hidden = true; return; }
-    const d = card
-      ? { title: `Palette${card.title ? ` — ${card.title}` : ''}`, by: 'Tap a colour to sort the wall by it', note: '' }
-      : describe(p);
-    if (p?.private) d.by = ['Private', d.by].filter(Boolean).join(' · ');
-    $('#hover-title').textContent = d.title;
-    $('#hover-by').textContent = d.by;
-    $('#hover-note').textContent = d.note;
-    hover.hidden = false;
-    moveHover(e);
-  });
-  root.addEventListener('pointermove', (e) => { if (!hover.hidden) moveHover(e); });
-  root.addEventListener('pointerout', (e) => {
-    if (!e.relatedTarget?.closest?.('[data-id]')) hover.hidden = true;
-  });
-  root.addEventListener('pointerdown', () => { hover.hidden = true; });
-}
+// ------------------------------------------------------------------ tapping
 
 function tap(id, hit) {
   if (dismissing) { dismissing = false; return; }
@@ -569,7 +577,9 @@ function openFocus(p) {
   renderSource(p);
   $('#focus-title').textContent = p.title || 'Untitled';
   // The piece's colours, sized by how much of it they cover. Tap one to sort by it.
-  const palette = (p.colors?.palette || []).map((e) => (typeof e === 'string' ? { c: e, w: 1 } : e));
+  // One colour on its own says little, so it isn't shown.
+  let palette = (p.colors?.palette || []).map((e) => (typeof e === 'string' ? { c: e, w: 1 } : e));
+  if (palette.length < 2) palette = [];
   $('#focus-palette').replaceChildren(...palette.map(({ c, w }) => h('button', {
     type: 'button',
     style: `--c:${c};flex-grow:${w}`,
@@ -807,6 +817,29 @@ addEventListener('keydown', (e) => {
   e.preventDefault();
 });
 
+// Holding space turns the pointer into a hand: drag to move round the wall
+// (or the grid) without picking anything up, and clicks don't open work.
+// Someone who tabbed to a button still gets to press it with space.
+let tabbing = false;
+addEventListener('pointerdown', () => { tabbing = false; }, { capture: true, passive: true });
+function setHand(on) {
+  if (state.hand === on) return;
+  state.hand = on;
+  document.documentElement.classList.toggle('hand', on);
+}
+addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') tabbing = true;
+  if (e.key !== ' ' || e.metaKey || e.ctrlKey || e.altKey || state.tv) return;
+  if (e.target.closest?.('input, textarea, select, [contenteditable], canvas') || $('dialog[open]')) return;
+  const el = document.activeElement;
+  if (tabbing && el && el !== document.body) return;
+  e.preventDefault();
+  if (el !== document.body) el?.blur?.(); // a clicked button would otherwise press again
+  setHand(true);
+});
+addEventListener('keyup', (e) => { if (e.key === ' ') setHand(false); });
+addEventListener('blur', () => setHand(false));
+
 addEventListener('resize', () => { wall.resize(); if (state.view === 'grid') grid.resize(); });
 
 // ------------------------------------------------------------------ live updates
@@ -925,9 +958,11 @@ async function resync() {
 const tv = { run: 0, pausedUntil: 0, timers: [] };
 let wakeLock = null;
 
-function setTv(on) {
+function setTv(on, glide = true) {
   state.tv = on;
-  document.body.classList.toggle('tv', on);
+  const change = () => document.body.classList.toggle('tv', on);
+  if (glide) glideLogo(change);
+  else change();
   const url = new URL(location.href);
   if (on) url.searchParams.set('tv', '1');
   else url.searchParams.delete('tv');
@@ -1049,7 +1084,7 @@ async function boot() {
   // And a full reload now and then for screens that stay on for weeks.
   setInterval(() => { if (state.tv) location.reload(); }, 6 * 3600_000);
 
-  if (state.tv) setTv(true);
+  if (state.tv) setTv(true, false); // a TV starting up just shows the logo in the middle
 }
 
 boot();

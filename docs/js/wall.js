@@ -400,7 +400,7 @@ export function createWall(root, { onTap, onColours, onInteract }) {
       return;
     }
     if (pointers.size > 2) return;
-    const target = e.target.closest('[data-id]');
+    const target = state.hand ? null : e.target.closest('[data-id]');
     gesture = { id: target?.dataset.id, el: target, hit: e.target, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, drag: false };
   });
 

@@ -56,6 +56,14 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   -webkit-user-select: none;
 }
 .wall.panning { cursor: grabbing; }
+/* The pointer: a little dot in the logo's colour (made in main.js). Text
+   fields keep their caret and the colour wheel its crosshair. */
+.dotted, .dotted * { cursor: var(--dot) !important; }
+.dotted input:not([type="range"], [type="checkbox"], [type="radio"]), .dotted textarea { cursor: text !important; }
+.dotted .wheel canvas { cursor: crosshair !important; }
+/* Holding space: a ring that moves round the work without picking anything up */
+.hand .wall, .hand .grid { cursor: var(--ring, grab) !important; }
+.hand .wall *, .hand .grid * { cursor: inherit !important; }
 .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .world.moving { will-change: transform; }
 .fade-in { animation: fade-in 0.4s ease both; }
@@ -210,11 +218,24 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   display: block;
   width: clamp(150px, 14vw, 260px);
   color: var(--accent);
-  transition: transform 0.4s var(--ease);
 }
-.logo:hover { transform: rotate(-2deg) scale(1.03); }
+.logo svg { display: block; width: 100%; height: auto; overflow: visible; }
 .logo svg path { transition: fill 2s var(--ease); }
-.logo svg { display: block; width: 100%; height: auto; }
+.logo:hover svg path { transition-duration: 0.35s; }
+/* Hover the logo and its leaves hop, left to right */
+.logo .leaf { transform-box: fill-box; transform-origin: 50% 100%; }
+.logo--hop .leaf { animation: leaf-hop 0.56s calc(var(--i) * 60ms) both; }
+/* crouch, spring up, land with a squash, one small rebound, settle */
+@keyframes leaf-hop {
+  0% { transform: none; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  10% { transform: scale(1.1, 0.82); animation-timing-function: cubic-bezier(0.15, 0.8, 0.3, 1); }
+  40% { transform: translateY(-140%) scale(0.92, 1.1); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  62% { transform: scale(1.12, 0.8); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  77% { transform: translateY(-28%) scale(0.97, 1.04); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  89% { transform: scale(1.04, 0.95); animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .logo--hop .leaf { animation: none; } }
 
 /* The inspiration section's label, beside the logo; click it to go back */
 .section {
@@ -378,6 +399,8 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .pop__seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .pop__rows { display: flex; flex-direction: column; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--keyline); }
+.pop__tip { margin: 6px 10px 2px; color: var(--grey); }
+@media (hover: none) { .pop__tip { display: none; } }
 .pop__row {
   padding: 10px 10px;
   border: 0;
@@ -397,28 +420,6 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .pop__switch input:checked + i { background: var(--ink); }
 .pop__switch input:checked + i::after { transform: translateX(18px); }
 .pop__switch input:focus-visible + i { outline: 2px solid var(--ink); outline-offset: 3px; }
-.hover {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 25;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-width: 320px;
-  padding: 9px 14px 10px;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: 12px;
-  font-size: 15px;
-  line-height: 1.25;
-  pointer-events: none;
-}
-.hover b { font-weight: 400; }
-.hover span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey-light); }
-.hover span:empty,
-.hover i:empty { display: none; }
-.hover i { margin-top: 4px; font-family: var(--serif); font-weight: 500; font-size: 15px; }
 
 .zoom {
   position: fixed;
@@ -544,11 +545,10 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .dropzone p { margin: 0; font-size: clamp(40px, 7vw, 96px); letter-spacing: -0.02em; }
 
-/* TV: nothing but the work */
-.tv .nav,
-.tv .pop,
-.tv .zoom,
-.tv .hover { display: none !important; }
+/* TV: nothing but the work. The controls fade away as the logo glides to the middle. */
+.nav, .zoom { transition: opacity 0.5s var(--ease), visibility 0.5s; }
+.tv .nav, .tv .zoom { opacity: 0; visibility: hidden; }
+.tv .pop { display: none !important; }
 .tv .pin,
 .tv .tile { cursor: default; }
 .tv-exit {
@@ -827,10 +827,14 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .focus__describe-row { display: flex; justify-content: flex-end; gap: 8px; }
 .focus__describe-row .btn { padding: 9px 18px; font-size: 15px; }
 .focus__title { margin: 0; font-size: 44px; font-weight: 400; line-height: 1.02; letter-spacing: -0.02em; overflow-wrap: anywhere; }
-.focus__palette { display: flex; height: 34px; overflow: hidden; border-radius: 6px; box-shadow: 0 0 0 1px rgba(242, 242, 242, 0.14); }
+/* The piece's colours as one slim band; each colour swells a little under the pointer */
+.focus__palette { display: flex; height: 12px; }
 .focus__palette:empty { display: none; }
-.focus__palette button { flex-basis: 0; min-width: 14px; padding: 0; border: 0; border-radius: 0; background: var(--c); cursor: pointer; }
-.focus__palette button:hover { outline: 2px solid var(--paper); outline-offset: -2px; }
+.focus__palette button { flex-basis: 0; min-width: 12px; padding: 0; border: 0; border-radius: 0; background: var(--c); cursor: pointer; transition: transform 0.25s var(--ease); }
+.focus__palette button:first-child { border-radius: 999px 0 0 999px; }
+.focus__palette button:last-child { border-radius: 0 999px 999px 0; }
+.focus__palette button:hover,
+.focus__palette button:focus-visible { transform: scaleY(1.7); outline: none; }
 .focus__visibility { display: flex; align-items: center; gap: 12px; }
 .focus__seg { display: inline-flex; padding: 3px; border: 1px solid rgba(242, 242, 242, 0.2); border-radius: 999px; }
 .focus__seg button {

@@ -151,15 +151,16 @@ export function createGrid(root, { onTap, onColours, onInteract }) {
   root.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     onInteract();
-    press = { id: e.target.closest('[data-id]')?.dataset.id, hit: e.target, y: e.clientY, sy: e.clientY, sx: e.clientX, moved: false, pid: e.pointerId };
+    press = { id: state.hand ? null : e.target.closest('[data-id]')?.dataset.id, hit: e.target, y: e.clientY, sy: e.clientY, sx: e.clientX, moved: false, pid: e.pointerId };
   });
   root.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'mouse') hovering = !!e.target.closest('[data-id]');
     if (!press || e.pointerId !== press.pid) return;
     if (!press.moved && Math.hypot(e.clientX - press.sx, e.clientY - press.sy) < 6) return;
-    if (!press.moved && drifting) { root.setPointerCapture(e.pointerId); root.classList.add('panning'); }
+    if (!press.moved && (drifting || state.hand)) { root.setPointerCapture(e.pointerId); root.classList.add('panning'); }
     press.moved = true;
     if (drifting) nudge(press.y - e.clientY);
+    else if (state.hand) root.scrollTop += press.y - e.clientY;
     press.y = e.clientY;
   });
   const end = (e) => {

@@ -15,7 +15,7 @@
   <main class="wall" id="wall" aria-label="The wall"></main>
   <main class="grid" id="grid" aria-label="The grid" hidden></main>
 
-  <a class="logo" href="./" aria-label="Potting Shed Pinboard: a fresh mix">
+  <a class="logo" href="./" aria-label="Potting Shed Pinboard">
     <svg viewBox="0 0 682.5 143.86" aria-hidden="true" focusable="false" fill="currentColor">
       <path class="leaf" style="--i:0" d="M153.744 6.409c.612 2.17 2.448 9.229 2.448 9.229h-11.224c-6.536 0-9.187-3.797-9.806-5.967S132.707.456 132.707.456s4.708-.007 11.231-.007 9.194 3.8 9.806 5.96"/>
       <path class="leaf" style="--i:1" d="M231.092 6.409c-.612 2.17-2.448 9.229-2.448 9.229h11.231c6.53 0 9.18-3.8 9.8-5.967s2.457-9.215 2.457-9.215-4.708-.007-11.231-.007-9.187 3.8-9.806 5.96"/>
@@ -39,10 +39,10 @@
     <button class="nav__round" id="tv-btn" type="button" aria-label="TV mode" title="TV mode">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12.5" rx="1.5"/><path d="M8.5 20.5h7M12 17v3.5"/></svg>
     </button>
-    <button class="nav__colour" id="colour-btn" type="button" aria-label="Filter by colour" aria-expanded="false" aria-controls="colour-menu">
+    <button class="nav__colour" id="colour-btn" type="button" aria-label="Sort by colour" title="Sort by colour" aria-expanded="false" aria-controls="colour-menu">
       <span class="nav__dot" id="colour-dot"></span>
     </button>
-    <button class="nav__more" id="more-btn" type="button" aria-label="More options" aria-expanded="false" aria-controls="more-menu">
+    <button class="nav__more" id="more-btn" type="button" aria-label="More options" title="More" aria-expanded="false" aria-controls="more-menu">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5"/></svg>
     </button>
   </nav>
@@ -63,7 +63,7 @@
 
   <div class="pop pop--more" id="more-menu" hidden>
     <p class="pop__label">Order</p>
-    <p class="pop__hint" id="order-hint" hidden>Sorted by colour just now. Pick an order to go back.</p>
+    <p class="pop__hint" id="order-hint" hidden>Sorted by colour for now. Pick an order to go back.</p>
     <div class="pop__seg" data-group="order">
       <button type="button" data-value="new">Newest</button>
       <button type="button" data-value="mix">Mix</button>
@@ -82,9 +82,10 @@
     </label>
     <p class="pop__hint prototype-only">This is the prototype. What you add is saved in this browser only, until Pinboard goes live.</p>
     <div class="pop__rows">
-      <button class="pop__row" type="button" id="shuffle-btn">Shuffle<small>A fresh mix</small></button>
+      <button class="pop__row" type="button" id="shuffle-btn">Shuffle<small>Rearrange the wall</small></button>
       <button class="pop__row" type="button" id="home-btn">Make it your homepage<small>See the studio every time you open a browser</small></button>
     </div>
+    <p class="pop__hint pop__tip">Hold space and drag to move round without picking anything up.</p>
   </div>
 
   <div class="zoom" id="zoom">

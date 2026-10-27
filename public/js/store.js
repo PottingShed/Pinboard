@@ -24,12 +24,17 @@ export const state = {
   show: oneOf(saved('show'), ['all', 'public', 'inspiration'], 'all'),
   video: saved('video') !== 'off', // some people find moving work on screen distracting
   hand: false, // space held: drag moves round the work instead of picking it up
-  colour: hexOrNull(saved('colour')), // sort by closeness to this colour, when set
+  // Sort by closeness to this colour, when set. Only for this visit: next time
+  // the wall opens newest first again (unless the address asks for a colour).
+  colour: hexOrNull(params.get('colour')),
 };
+try { localStorage.removeItem('pb.colour'); } catch {} // older versions kept it
+
+const THIS_VISIT = new Set(['colour']);
 
 export function remember(key, value) {
   state[key] = value;
-  if (state.tv) return; // TVs take their settings from the address
+  if (state.tv || THIS_VISIT.has(key)) return; // TVs take their settings from the address
   try {
     if (value == null) localStorage.removeItem(`pb.${key}`);
     else localStorage.setItem(`pb.${key}`, value);

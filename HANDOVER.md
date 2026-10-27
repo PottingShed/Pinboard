@@ -53,6 +53,9 @@ So nothing gets undone by accident:
 - **Palette cards:** at most five, and only for client work.
 - **Tape:** one strip on every piece (top or a corner), no pins.
 - **Everything shows** in both views; only media near the screen loads, and far-away media is let go.
+- **No hover captions** on pieces; the pointer is a small dot in the logo's colour. Hold space and drag to move round without picking anything up.
+- **The logo:** hover it for a new brand colour and a quick hop of its leaves, left to right. Going into TV mode it glides to the middle, and back again.
+- **Sorting by colour** lasts for that visit only; the wall opens newest first.
 - **No animation or announcements.** New work just appears: no drop-ins, no "just pinned" cards, no toasts. Only errors show a message.
 - **New work defaults to Private** (studio only). TV mode shows public work only.
 - **TV mode** (its own button in the nav):
