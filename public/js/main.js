@@ -8,6 +8,10 @@ import { DARK_COLOURS, describe } from './pieces.js';
 import { createWall } from './wall.js';
 import { createGrid } from './grid.js';
 import { kindOf, prepImage, prepVideo, uploadBlob } from './upload.js';
+import { isLocalPin } from './local.js';
+
+// In the prototype, only what you've added in this browser can be changed or taken down.
+const yours = (p) => !PREVIEW || isLocalPin(p);
 
 // One brand colour at a time, for the logo and anything that needs a highlight.
 // Royal blue is the only one dark enough to need light text on it.
@@ -379,7 +383,7 @@ const mediaSheet = $('#media-sheet');
 const media = { items: [], busy: false };
 
 function openMedia(files = []) {
-  if (state.tv || PREVIEW) return;
+  if (state.tv) return;
   if (!media.busy) setMediaStatus('');
   addFiles(files);
   if (!mediaSheet.open) {
@@ -580,6 +584,7 @@ function openFocus(p) {
   $('#focus-open').href = fileUrl(p.src);
   $('#focus-count').textContent = showing.length > 1 ? `${showing.findIndex((q) => q.id === p.id) + 1} / ${showing.length}` : '';
   resetRemove();
+  $('#focus-remove').hidden = !yours(p);
   updateComment();
   if (!focus.open) focus.showModal();
 }
@@ -600,7 +605,7 @@ function renderDescription(p) {
   $('#focus-description').textContent = p.description || '';
   $('#focus-description').hidden = false;
   $('#focus-edit').textContent = p.description ? 'Edit description' : 'Add a description';
-  $('#focus-edit').hidden = false;
+  $('#focus-edit').hidden = !yours(p);
   $('#describe-form').hidden = true;
 }
 $('#focus-edit').addEventListener('click', () => {
@@ -633,6 +638,7 @@ $('#describe-form').addEventListener('submit', async (e) => {
 
 // Public or private, switchable any time. Private work never shows on the TVs.
 function renderVisibility(p) {
+  $('#focus-visibility').hidden = !yours(p);
   for (const b of $$('#focus-visibility button')) b.setAttribute('aria-pressed', String(!!p.private === (b.dataset.private === '1')));
   $('#focus-visibility-note').textContent = p.private ? 'Studio only' : 'On the TVs';
 }
@@ -679,7 +685,7 @@ function renderComments() {
   $('#focus-notes').replaceChildren(...childrenOf(focusId).map((c) => h('li', { class: DARK_COLOURS.has(c.color) ? 'is-dark' : '', style: `--c:${c.color}` }, [
     h('span', {}, c.text),
     h('small', {}, [c.author, c.studio, fmtDate(c.created_at)].filter(Boolean).join(' · ')),
-    h('button', { type: 'button', class: 'focus__unnote', 'aria-label': 'Remove this comment', title: 'Remove', onclick: () => removeComment(c.id) }, '×'),
+    yours(c) ? h('button', { type: 'button', class: 'focus__unnote', 'aria-label': 'Remove this comment', title: 'Remove', onclick: () => removeComment(c.id) }, '×') : null,
   ])));
 }
 

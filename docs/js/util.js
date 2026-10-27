@@ -1,5 +1,7 @@
 // Small shared helpers.
 
+import { localUrl, localPins, createPin, updatePin, removePin } from './local.js';
+
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -19,11 +21,27 @@ export function h(tag, attrs = {}, children = []) {
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const rand = (a, b) => a + Math.random() * (b - a);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-export const fileUrl = (name) => `files/${name}`;
+export const fileUrl = (name) => localUrl(name) || `files/${name}`;
 
-// The view-only preview (on GitHub Pages) reads a snapshot instead of the API.
+// The prototype (on GitHub Pages) has no server: it reads a snapshot of the
+// wall, and what people add is kept in their own browser (see local.js).
 export const PREVIEW = document.documentElement.hasAttribute('data-preview');
-const SNAPSHOT = { '/api/pins': 'data/pins.json', '/api/config': 'data/config.json' };
+
+async function prototypeApi(path, { method = 'GET', body } = {}) {
+  if (method === 'GET' && path === '/api/config') return (await fetch('data/config.json')).json();
+  if (method === 'GET' && path === '/api/pins') {
+    const res = await fetch('data/pins.json');
+    if (!res.ok) throw new Error('Couldn’t load the wall.');
+    const { pins } = await res.json();
+    return { pins: [...pins, ...(await localPins())] };
+  }
+  if (method === 'POST' && path === '/api/pins') return createPin(body);
+  const m = /^\/api\/pins\/([a-z0-9]+)(\/colors)?$/.exec(path);
+  if (m?.[2]) return { ok: true }; // colours stay with the piece in this browser
+  if (m && method === 'PATCH') return updatePin(m[1], body);
+  if (m && method === 'DELETE') return removePin(m[1]);
+  throw new Error('Not in the prototype.');
+}
 export const hash = (str) => [...str].reduce((x, c) => (x * 31 + c.charCodeAt(0)) | 0, 7) >>> 0;
 export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 export const easeSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
@@ -46,10 +64,7 @@ export function fmtDate(ts, long = false) {
 }
 
 export async function api(path, opts = {}) {
-  if (PREVIEW) {
-    if ((opts.method || 'GET') !== 'GET' || !SNAPSHOT[path]) throw new Error('This is a view-only preview.');
-    return (await fetch(SNAPSHOT[path])).json();
-  }
+  if (PREVIEW) return prototypeApi(path, opts);
   const res = await fetch(path, {
     method: opts.method || 'GET',
     headers: opts.body ? { 'Content-Type': 'application/json' } : {},

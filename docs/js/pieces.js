@@ -7,11 +7,12 @@ import { childrenOf } from './store.js';
 // Brand colours dark enough to need light text on them.
 export const DARK_COLOURS = new Set(['#245FFF']);
 
-// Tape, sparingly: most pieces sit flat on the wall, about one in three has a
-// single strip across the top, and the odd one is taped at two corners.
+// One strip of tape on every piece, never more: across the top, or over one
+// of the corners, different from piece to piece.
 function tapeFor(id) {
   const n = hash(id) % 100;
-  return n < 28 ? ['tape1', 1] : n < 36 ? ['tape', 2] : null;
+  const spot = n < 40 ? 'tape1' : n < 60 ? 'tape-tl' : n < 80 ? 'tape-tr' : n < 90 ? 'tape-bl' : 'tape-br';
+  return [spot, 1];
 }
 
 // onColours(p, imageElement) is called once an image without colours has loaded.
@@ -44,7 +45,8 @@ export function buildPiece(p, w, hgt, { fixings = true, lazy = false, defer = fa
         frame.src = poster;
       }
     }
-    v.src = fileUrl(p.src);
+    if (defer) v.dataset.video = fileUrl(p.src);
+    else v.src = fileUrl(p.src);
     paper.append(v);
   }
   el.append(paper);
@@ -89,12 +91,32 @@ export function buildPalette(card, w, hgt, { fixings = true } = {}) {
   return el;
 }
 
-// Load a deferred piece's image or poster frame.
+// Load a deferred piece's image, or its video and poster frame, as it comes near the screen…
 export function wake(el) {
   const img = el.querySelector(':scope > .pin__paper > img[data-src]');
   if (img) { img.src = img.dataset.src; delete img.dataset.src; }
-  const v = el.querySelector(':scope > .pin__paper > video[data-poster]');
-  if (v) { v.poster = v.dataset.poster; delete v.dataset.poster; }
+  const v = el.querySelector(':scope > .pin__paper > video');
+  if (v?.dataset.poster) { v.poster = v.dataset.poster; delete v.dataset.poster; }
+  if (v?.dataset.video) { v.src = v.dataset.video; delete v.dataset.video; }
+}
+
+// …and let it go again once it's well out of view, so a wall of thousands of
+// pieces (or a TV left on for a week) only ever holds what's around the screen.
+// Coming back is quick: the files are in the browser's cache.
+export function rest(el) {
+  const img = el.querySelector(':scope > .pin__paper > img[src]');
+  if (img) {
+    img.dataset.src = img.getAttribute('src');
+    img.removeAttribute('src');
+    img.classList.remove('loaded');
+  }
+  const v = el.querySelector(':scope > .pin__paper > video[src]');
+  if (v) {
+    v.pause();
+    v.dataset.video = v.getAttribute('src');
+    v.removeAttribute('src');
+    v.load(); // drops what it had buffered
+  }
 }
 
 // A dot in the corner, in the colour of the latest comment, counting them.

@@ -3,6 +3,8 @@
 // and both get their colours read before they go up.
 
 import { analyse } from './colour.js';
+import { PREVIEW } from './util.js';
+import { saveFile } from './local.js';
 
 export function kindOf(file) {
   const t = file.type || '';
@@ -98,6 +100,7 @@ const SINGLE_MAX = 90 * 1024 * 1024;
 // One request for most files. Anything over 90MB goes up in parts, because
 // Cloudflare's free plan takes requests up to 100MB.
 export async function uploadBlob(blob, onProgress) {
+  if (PREVIEW) { onProgress?.(1); return saveFile(blob); } // the prototype keeps it in this browser
   if (blob.size <= SINGLE_MAX) return send('POST', '/api/upload', blob, onProgress).then((d) => d.file);
   const start = await send('POST', '/api/upload/start', JSON.stringify({ type: blob.type, size: blob.size }), null, 'application/json');
   const parts = [];

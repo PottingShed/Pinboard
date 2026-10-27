@@ -7,11 +7,12 @@ import { childrenOf } from './store.js';
 // Brand colours dark enough to need light text on them.
 export const DARK_COLOURS = new Set(['#245FFF']);
 
-// Tape, sparingly: most pieces sit flat on the wall, about one in three has a
-// single strip across the top, and the odd one is taped at two corners.
+// One strip of tape on every piece, never more: across the top, or over one
+// of the corners, different from piece to piece.
 function tapeFor(id) {
   const n = hash(id) % 100;
-  return n < 28 ? ['tape1', 1] : n < 36 ? ['tape', 2] : null;
+  const spot = n < 40 ? 'tape1' : n < 60 ? 'tape-tl' : n < 80 ? 'tape-tr' : n < 90 ? 'tape-bl' : 'tape-br';
+  return [spot, 1];
 }
 
 // onColours(p, imageElement) is called once an image without colours has loaded.

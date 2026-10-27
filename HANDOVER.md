@@ -5,7 +5,7 @@ For Jamie, from Luke (27 Oct 2026). `README.md` has the full detail on what Pinb
 ## Where it is
 
 - Built and tested end to end on Cloudflare's local emulation (`npm run dev`), with all the website work imported (530 pieces).
-- **Adding work from anyone is already built.** Uploads, comments, public/private, inspiration and live updates all work in the Worker; they just need deploying to Cloudflare. The GitHub Pages copy is a view-only preview (`npm run preview`), so those parts are switched off there.
+- **Adding work from anyone is already built.** Uploads, comments, public/private, inspiration and live updates all work in the Worker; they just need deploying to Cloudflare. The GitHub Pages copy (`npm run preview`, served from `docs/`) is a prototype: there's no server, so what people add there is saved in their own browser only. Once it's live on Cloudflare, `docs/` and `public/js/local.js`'s role go away (the live version never uses it).
 - **Not live yet.**
 - Already done on Cloudflare, in Luke's account (`Luke@pottingshed.com's Account`, ID `121dc0e8a89876f04d58573880de5ae3`):
   - Created the D1 database `pinboard` (Western Europe). Its ID is already in `wrangler.jsonc`. It has no tables yet; deploying adds them.
@@ -51,7 +51,8 @@ So nothing gets undone by accident:
 - **Refresh:** every five minutes the wall is redrawn with the latest work (on people's own screens only once they're idle).
 - **Colour:** the wheel *sorts* by any colour; it doesn't filter.
 - **Palette cards:** at most five, and only for client work.
-- **Tape:** used sparingly, no pins.
+- **Tape:** one strip on every piece (top or a corner), no pins.
+- **Everything shows** in both views; only media near the screen loads, and far-away media is let go.
 - **No animation or announcements.** New work just appears: no drop-ins, no "just pinned" cards, no toasts. Only errors show a message.
 - **New work defaults to Private** (studio only). TV mode shows public work only.
 - **TV mode** (its own button in the nav):

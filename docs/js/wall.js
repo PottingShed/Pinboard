@@ -9,7 +9,7 @@
 
 import { h, clamp, rand, sleep, easeInOut, fileUrl, reduceMotion } from './util.js';
 import { state, childrenOf } from './store.js';
-import { buildPiece, buildPalette, refreshDot, popDot, arrive, wake } from './pieces.js';
+import { buildPiece, buildPalette, refreshDot, popDot, arrive, wake, rest } from './pieces.js';
 
 const MIN_S = 0.03;
 const MAX_S = 3;
@@ -48,6 +48,32 @@ function fits(c, placed) {
   return covered <= c.w * c.h * 0.32;
 }
 
+// Pieces already up, filed by patch of wall, so checking a spot only looks at
+// its neighbours. Keeps arranging the wall quick with thousands of pieces.
+function neighbours(cell = 700) {
+  const cells = new Map();
+  const keys = (r, pad = 0) => {
+    const out = [];
+    for (let x = Math.floor((r.x - r.w / 2 - pad) / cell); x <= Math.floor((r.x + r.w / 2 + pad) / cell); x++) {
+      for (let y = Math.floor((r.y - r.h / 2 - pad) / cell); y <= Math.floor((r.y + r.h / 2 + pad) / cell); y++) out.push(`${x},${y}`);
+    }
+    return out;
+  };
+  return {
+    add(L) {
+      for (const k of keys(L)) {
+        if (!cells.has(k)) cells.set(k, []);
+        cells.get(k).push(L);
+      }
+    },
+    near(r) {
+      const found = new Set();
+      for (const k of keys(r, 10)) for (const q of cells.get(k) || []) found.add(q);
+      return found;
+    },
+  };
+}
+
 // How big the work looks on screen: bigger on big screens, never tiny on phones.
 const homeScale = (vw) => clamp(vw / 2600, 0.3, 0.95);
 
@@ -74,6 +100,7 @@ function compose(list, W, H) {
   const each = (L, fn) => { const [c0, c1, r0, r1] = span(L); for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) fn(r * cols + c); };
 
   const placed = [];
+  const around = neighbours();
   let next = 0;
   for (const p of list) {
     let spot = null;
@@ -86,7 +113,7 @@ function compose(list, W, H) {
         if (attempt) { w = Math.round(w * 0.7); hh = Math.round(hh * 0.7); }
         for (let k = 0; k < 30; k++) {
           const c = { w, h: hh, x: hole.cx + rand(-0.5, 0.5) * Math.max(0, w - CELL), y: hole.cy + rand(-0.5, 0.5) * Math.max(0, hh - CELL) };
-          if (!fits(c, placed)) continue;
+          if (!fits(c, around.near(c))) continue;
           let gain = 0;
           each(c, (i) => { gain += bare[i]; });
           if (gain && (!spot || gain > spot.gain)) spot = { ...c, gain };
@@ -96,6 +123,7 @@ function compose(list, W, H) {
     }
     const L = { id: p.id, x: Math.round(spot.x), y: Math.round(spot.y), w: spot.w, h: spot.h, rot: tiltFor(p), z: 0 };
     placed.push(L);
+    around.add(L);
     each(L, (i) => { bare[i] = 0; });
   }
   // Ran out of work: it's solid up to the first bare spot (less the jumble).
@@ -325,12 +353,14 @@ export function createWall(root, { onTap, onColours, onInteract }) {
     const dpr = devicePixelRatio || 1;
     const hw = vw / 2 / cam.s + 100, hh = vh / 2 / cam.s + 100;
     const near = 500; // start loading a little before things come into view
+    const far = 2.5 * Math.max(hw, hh); // and let go of what's a couple of screens away
     for (const L of layout.values()) {
       const p = state.pins.get(L.id);
       const el = els.get(L.id);
       if (!p || !el) continue;
       const dx = Math.abs(L.x - cam.x) - L.w / 2, dy = Math.abs(L.y - cam.y) - L.h / 2;
       if (dx < hw + near && dy < hh + near) wake(el);
+      else if (dx > hw + far || dy > hh + far) rest(el);
       const visible = dx < hw && dy < hh;
       const px = L.w * cam.s * dpr;
       if (p.kind === 'image' && p.thumb) {

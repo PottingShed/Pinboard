@@ -4,8 +4,8 @@ Potting Shed's shared studio wall at **pinboard.pottingshed.com**. Anyone in Gue
 
 ## What it does
 
-- **Wall view.** A layered collage that fills the screen and runs far past it, newest work in the middle, arranged fresh on every visit. Tape is used sparingly, and a handful of palette cards (one client's colours each) sit among the work. Drag around to explore, pinch or ⌘-scroll to zoom; you can't go past the edge of the work, so the screen is always full.
-- **Grid view.** A neat masonry layout whose columns drift slowly upward. Hover to slow it, scroll or drag to move it.
+- **Wall view.** A layered collage of everything, filling the screen and running far past it, newest work in the middle, arranged fresh on every visit. Each piece has one strip of tape, and a handful of palette cards (one client's colours each) sit among the work. Only what's near the screen loads; images further than a couple of screens away are let go again, so it stays quick with thousands of pieces. Drag around to explore, pinch or ⌘-scroll to zoom; you can't go past the edge of the work, so the screen is always full.
+- **Grid view.** A neat masonry layout of everything, whose columns drift slowly upward. Hover to slow it, scroll or drag to move it. Tiles load as they come near the screen and are let go once they're well past it.
 - **Add.** Images and video: drop, paste or browse, with an optional title and description (what it is, what it's for, what feedback would help). Each piece is **Our work** or **Inspiration** (work that isn't ours, with an optional source: who made it, or a link), and **Private** (studio only, the default) or **Public** (fine for the TVs). You add your name and studio once and it's remembered. The description and public/private can be changed later in the piece's expanded view.
 - **Show.** In the ⌄ menu: **All** (all our work, public and private: the default), **Public** (only what's fine for the TVs and clients) or **Inspiration** (its own section). In Public or Inspiration a small label sits by the logo; click it to go back to All.
 - **Comments.** Open any piece to read and leave short comments (100 characters, with your name). A piece with comments gets a small brand-coloured dot in its corner showing how many.
@@ -89,9 +89,9 @@ PINBOARD_URL=https://pinboard.pottingshed.com node scripts/seed.mjs website.json
 
 Leave out `PINBOARD_URL` to import into the local copy instead, and add `PINBOARD_PASSCODE=…` if you've set one. This brings in the 23 case studies (every image, plus the hero films under 40MB), the showreel tiles and the 103-project archive, tagged as website (public) work, plus one starter comment. Run it on a Mac: `sips` makes the previews and reads the colours, and QuickLook grabs video poster frames. `seed.mjs` takes any list in the same format, so it can import other batches too.
 
-## The view-only preview (GitHub Pages)
+## The prototype (GitHub Pages)
 
-For showing it round before it's live, `npm run preview` builds a view-only copy into `docs/` from the local copy (`npm run dev` must be running). GitHub Pages serves it from there (Settings → Pages → `main`, `/docs`). It reads a snapshot of the wall instead of the API and hides adding, comments and changes. Because a Pages site is public, it only includes public work, uses the 960px images and leaves out videos over 12MB (about 190MB in all). Once Pinboard is live on Cloudflare, `docs/` can be deleted.
+For showing it round before it's live, `npm run preview` builds a prototype into `docs/` from the local copy (`npm run dev` must be running). GitHub Pages serves it from there (Settings → Pages → `main`, `/docs`). There's no server behind it: it reads a snapshot of the wall, and what people add there (work, inspiration, comments) is saved in their own browser only (`public/js/local.js`), with a note saying so. Snapshot pieces can't be changed or taken down. Because a Pages site is public, it only includes public work, uses the 960px images and leaves out videos over 12MB (about 190MB in all). Once Pinboard is live on Cloudflare, `docs/` can be deleted.
 
 ## Setting up the studio TVs
 
