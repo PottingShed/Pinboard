@@ -15,8 +15,18 @@ function db() {
       if (!have.contains('files')) req.result.createObjectStore('files');
       if (!have.contains('boards')) req.result.createObjectStore('boards', { keyPath: 'id' });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      // Step aside when a newer version of the page needs to change the storage.
+      req.result.onversionchange = () => req.result.close();
+      resolve(req.result);
+    };
     req.onerror = () => reject(req.error);
+    // An older copy of the page left open in another tab can hold the storage
+    // up. Never let that keep the wall from showing: carry on without it.
+    setTimeout(() => reject(new Error('Pinboard is open in another tab. Close it to save here.')), 2500);
+  }).catch((err) => {
+    opening = null; // try again next time
+    throw err;
   });
   return opening;
 }
