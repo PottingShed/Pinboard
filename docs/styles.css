@@ -180,6 +180,34 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .dot--dark { color: var(--paper); }
 .tile .dot { left: 10px; top: 10px; min-width: 30px; height: 30px; padding: 0 9px; font-size: 14px; }
+/* The heart: shows in a piece's corner under the pointer; tap it to save to a board */
+.heart {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 2px 12px rgba(23, 23, 23, 0.14);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.18s, transform 0.3s var(--pop);
+}
+.heart svg { width: 46%; height: 46%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; transition: transform 0.3s var(--pop); }
+.heart:hover svg { transform: scale(1.12); }
+.heart.is-saved svg { fill: var(--accent); }
+@media (hover: hover) {
+  .pin:hover > .heart { opacity: 1; transform: none; }
+}
+.tile .heart { right: 10px; bottom: 10px; width: 40px; height: 40px; }
+.tv .heart, .hand .heart, .panning .heart, .dragging > .heart { display: none; }
 /* Arriving, moving, leaving */
 .pending { visibility: hidden; }
 .dragging { cursor: grabbing; }
@@ -258,6 +286,10 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   -webkit-backdrop-filter: blur(12px);
 }
 .section span { font-size: 18px; color: var(--grey); }
+.section__heart { display: none; width: 18px; height: 18px; fill: var(--accent); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+.section--board .section__heart { display: block; }
+/* The nav's heart fills in while you're looking at a board */
+.nav__boards.is-on svg { fill: var(--accent); }
 .section:hover span { color: var(--ink); }
 .tile--gap { background: transparent; pointer-events: none; }
 
@@ -398,6 +430,42 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   cursor: pointer;
 }
 .pop__seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+/* Boards, in the menu and the save sheet: a row each, with the newest piece as its cover */
+.pop--boards { width: 340px; }
+.boards { display: flex; flex-direction: column; gap: 2px; max-height: min(52vh, 440px); margin: 0 -4px; padding: 0 4px; overflow-y: auto; }
+.board { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px; border: 0; border-radius: 14px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.board:hover,
+.board[aria-pressed="true"] { background: #E6E6E6; }
+.board__cover { flex-shrink: 0; display: grid; place-items: center; width: 46px; height: 46px; overflow: hidden; border-radius: 10px; background: #E0E0E0; }
+.board__cover img { width: 100%; height: 100%; object-fit: cover; }
+.board__cover svg { width: 20px; height: 20px; fill: none; stroke: var(--grey); stroke-width: 1.6; stroke-linejoin: round; }
+.board__text { flex: 1; min-width: 0; }
+.board__text b { display: block; overflow: hidden; font-weight: 400; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.board__text small { display: block; margin-top: 3px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey); }
+.board__actions { display: flex; flex-wrap: wrap; gap: 2px; margin: -2px 0 4px 58px; }
+.board__actions button { padding: 5px 8px; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 14px; color: var(--grey-dark); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.board__actions button:hover { color: var(--ink); }
+.board__actions .is-armed { background: var(--ink); color: var(--paper); text-decoration: none; }
+.board__actions .is-armed:hover { color: var(--paper); }
+.boards__empty { margin: 4px 8px 6px; font-size: 15px; line-height: 1.4; color: var(--grey-dark); }
+.boards__new { display: flex; align-items: center; gap: 8px; padding: 5px 5px 5px 16px; background: #E6E6E6; border-radius: 999px; }
+.boards__new input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; font: inherit; font-size: 17px; color: var(--ink); outline: none; }
+.boards__new input::placeholder { color: var(--grey); }
+.boards__new .btn { padding: 10px 18px; font-size: 15px; white-space: nowrap; }
+.boards .boards__new { margin: 2px 0 4px; }
+/* In the save sheet a board is ticked, not highlighted */
+.boards--save { max-height: min(46vh, 420px); }
+.boards--save .board[aria-pressed="true"] { background: transparent; }
+.boards--save .board:hover { background: #E6E6E6; }
+.board__check { flex-shrink: 0; display: grid; place-items: center; width: 30px; height: 30px; margin-right: 4px; border: 1px solid rgba(23, 23, 23, 0.25); border-radius: 50%; transition: background 0.2s, border-color 0.2s; }
+.board__check svg { width: 16px; height: 16px; fill: none; stroke: var(--on-accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(0.6); transition: opacity 0.15s, transform 0.3s var(--pop); }
+.board[aria-pressed="true"] .board__check { background: var(--accent); border-color: var(--accent); }
+.board[aria-pressed="true"] .board__check svg { opacity: 1; transform: none; }
+.saving { display: flex; align-items: center; gap: 14px; margin-top: -6px; padding-left: 7px; }
+.saving img,
+.saving__blank { flex-shrink: 0; width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: #E0E0E0; }
+.saving b { display: block; font-weight: 400; font-size: 18px; }
+.saving small { display: block; margin-top: 3px; font-size: 14px; color: var(--grey); }
 .pop__rows { display: flex; flex-direction: column; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--keyline); }
 .pop__tip { margin: 6px 10px 2px; color: var(--grey); }
 @media (hover: none) { .pop__tip { display: none; } }
@@ -489,6 +557,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   clip-path: polygon(0 0, 100% 0, 97% 25%, 100% 50%, 97% 75%, 100% 100%, 0 100%, 3% 75%, 0 50%, 3% 25%);
 }
 .empty__note p { margin: 0; }
+.empty__note small { display: block; margin-top: 10px; font-family: var(--sans); font-size: 16px; color: var(--grey-dark); }
 .empty__note button {
   align-self: flex-start;
   padding: 12px 22px;
@@ -828,6 +897,26 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .focus__describe-row .btn { padding: 9px 18px; font-size: 15px; }
 .focus__title { margin: 0; font-size: 44px; font-weight: 400; line-height: 1.02; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 /* The piece's colours as one slim band; each colour swells a little under the pointer */
+/* Save to a board, and the boards it's on already */
+.focus__boards { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.focus__save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px 10px 14px;
+  border: 1px solid rgba(242, 242, 242, 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+.focus__save:hover { border-color: var(--paper); }
+.focus__save svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.focus__save.is-saved svg { fill: var(--accent); stroke: var(--accent); }
+.focus__on { margin: 0; font-size: 14px; line-height: 1.4; color: var(--grey-light); }
+.focus__on button { padding: 0; border: 0; background: none; font: inherit; color: var(--paper); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .focus__palette { display: flex; height: 12px; }
 .focus__palette:empty { display: none; }
 .focus__palette button { flex-basis: 0; min-width: 12px; padding: 0; border: 0; border-radius: 0; background: var(--c); cursor: pointer; transition: transform 0.25s var(--ease); }
@@ -930,6 +1019,7 @@ body.login { overflow: auto; display: grid; place-items: center; min-height: 100
   .nav__dot { width: 40px; height: 40px; }
   .pop { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 72px); right: 50%; transform: translateX(50%); width: min(340px, calc(100vw - 24px)); animation: none; }
   .zoom { display: none !important; }
+  #tv-btn { display: none; } /* TV mode is for the studio screens, and it makes room for Boards */
   .sheet {
     width: 100vw;
     max-width: 100vw;

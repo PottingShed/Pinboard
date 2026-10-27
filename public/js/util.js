@@ -1,6 +1,6 @@
 // Small shared helpers.
 
-import { localUrl, localPins, createPin, updatePin, removePin } from './local.js';
+import { localUrl, localPins, createPin, updatePin, removePin, localBoards, createBoard, renameBoard, removeBoard, saveToBoard, takeOffBoard } from './local.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -36,6 +36,13 @@ async function prototypeApi(path, { method = 'GET', body } = {}) {
     return { pins: [...pins, ...(await localPins())] };
   }
   if (method === 'POST' && path === '/api/pins') return createPin(body);
+  if (method === 'GET' && path === '/api/boards') return { boards: await localBoards() };
+  if (method === 'POST' && path === '/api/boards') return createBoard(body);
+  const b = /^\/api\/boards\/([a-z0-9]+)(?:\/pins\/([a-z0-9]+))?$/.exec(path);
+  if (b && !b[2] && method === 'PATCH') return renameBoard(b[1], body);
+  if (b && !b[2] && method === 'DELETE') return removeBoard(b[1]);
+  if (b && b[2] && method === 'PUT') return saveToBoard(b[1], b[2], body);
+  if (b && b[2] && method === 'DELETE') return takeOffBoard(b[1], b[2]);
   const m = /^\/api\/pins\/([a-z0-9]+)(\/colors)?$/.exec(path);
   if (m?.[2]) return { ok: true }; // colours stay with the piece in this browser
   if (m && method === 'PATCH') return updatePin(m[1], body);

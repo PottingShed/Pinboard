@@ -20,7 +20,7 @@ For Jamie, from Luke (27 Oct 2026). `README.md` has the full detail on what Pinb
    npm install
    npx wrangler login
    npx wrangler r2 bucket create pinboard-files
-   npm run deploy        # creates the tables (migrations 0001–0004), then deploys
+   npm run deploy        # creates the tables (migrations 0001–0005), then deploys
    ```
 4. **Attach the domain.** Add this to `wrangler.jsonc`, then `npm run deploy` again:
    ```jsonc
@@ -53,6 +53,7 @@ So nothing gets undone by accident:
 - **Palette cards:** at most five, and only for client work.
 - **Tape:** one strip on every piece (top or a corner), no pins.
 - **Everything shows** in both views; only media near the screen loads, and far-away media is let go.
+- **Boards** are shared and need no login: anyone can make one, save to it, rename or delete it. A ♡ shows on a piece under the pointer (nothing else does); the nav's ♡ lists boards. Opening TV mode on a board puts that board on the TVs (public pieces only).
 - **No hover captions** on pieces; the pointer is a small dot in the logo's colour. Hold space and drag to move round without picking anything up.
 - **The logo:** hover it for a new brand colour and a quick hop of its leaves, left to right. Going into TV mode it glides to the middle, and back again.
 - **Sorting by colour** lasts for that visit only; the wall opens newest first.

@@ -12,6 +12,7 @@ const COMMENT_MAX = 100;
 const TITLE_MAX = 80;
 const DESCRIPTION_MAX = 400;
 const NAME_MAX = 40;
+const BOARD_NAME_MAX = 60;
 // studio: pinned by the team; case-study and archive: imported from the website;
 // inspiration: work that isn't ours, kept in its own section.
 const ORIGINS = ['studio', 'inspiration', 'case-study', 'archive'];
@@ -82,6 +83,23 @@ async function getPin(env, id) {
   if (!row) return null;
   delete row.deleted_at;
   return { ...row, colors: row.colors ? JSON.parse(row.colors) : null };
+}
+
+// A board and what's on it, as JSON straight from D1. Pieces that have been
+// taken down drop off. The browser puts them in order.
+const BOARD_JSON = `json_object('id', b.id, 'name', b.name, 'author', b.author, 'created_at', b.created_at,
+  'pins', json((SELECT json_group_array(json_object('id', bp.pin_id, 'by', bp.added_by, 'at', bp.added_at))
+    FROM board_pins bp JOIN pins p ON p.id = bp.pin_id AND p.deleted_at IS NULL WHERE bp.board_id = b.id)))`;
+const ALL_BOARDS = `SELECT json_group_array(${BOARD_JSON}) AS boards FROM (SELECT * FROM boards WHERE deleted_at IS NULL ORDER BY created_at) b`;
+const ONE_BOARD = `SELECT ${BOARD_JSON} AS board FROM boards b WHERE b.id = ? AND b.deleted_at IS NULL`;
+
+// Send everyone the board as it is now, and reply with it.
+async function boardChanged(env, ctx, id, status = 200) {
+  const row = await env.DB.prepare(ONE_BOARD).bind(id).first();
+  if (!row) throw new HttpError(404, 'That board’s gone');
+  const board = JSON.parse(row.board);
+  ctx.waitUntil(broadcast(env, 'board', board));
+  return json(board, status);
 }
 
 const fileExists = async (env, name) => FILE_RE.test(name || '') && !!(await env.BUCKET.head(name));
@@ -286,6 +304,13 @@ async function api(request, env, ctx, url) {
     });
   }
 
+  if (pathname === '/api/boards' && method === 'GET') {
+    const row = await env.DB.prepare(ALL_BOARDS).first();
+    return new Response(`{"boards":${row?.boards || '[]'}}`, {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': NOINDEX },
+    });
+  }
+
   if (pathname === '/api/live') {
     if (request.headers.get('upgrade') !== 'websocket') throw new HttpError(426, 'Expected a WebSocket');
     return hub(env).fetch(request);
@@ -340,6 +365,47 @@ async function api(request, env, ctx, url) {
     if (!meta.changes) throw new HttpError(404, 'Not found');
     ctx.waitUntil(broadcast(env, 'remove', { id: m[1] }));
     return json({ ok: true });
+  }
+
+  // Boards are shared: anyone can make one, rename it, take it down, and save
+  // pieces to it or take them off.
+  if (pathname === '/api/boards' && method === 'POST') {
+    const body = await readJSON(request);
+    const name = clean(body.name, BOARD_NAME_MAX);
+    if (!name) throw new HttpError(400, 'Give the board a name');
+    const id = newId();
+    await env.DB.prepare('INSERT INTO boards (id, name, author, created_at) VALUES (?, ?, ?, ?)')
+      .bind(id, name, clean(body.author, NAME_MAX) || null, Date.now()).run();
+    return boardChanged(env, ctx, id, 201);
+  }
+
+  const b = /^\/api\/boards\/([a-z0-9]+)(?:\/pins\/([a-z0-9]+))?$/.exec(pathname);
+  if (b && !b[2] && method === 'PATCH') {
+    const name = clean((await readJSON(request)).name, BOARD_NAME_MAX);
+    if (!name) throw new HttpError(400, 'Give the board a name');
+    const { meta } = await env.DB.prepare('UPDATE boards SET name = ? WHERE id = ? AND deleted_at IS NULL').bind(name, b[1]).run();
+    if (!meta.changes) throw new HttpError(404, 'That board’s gone');
+    return boardChanged(env, ctx, b[1]);
+  }
+  if (b && !b[2] && method === 'DELETE') {
+    const { meta } = await env.DB.prepare('UPDATE boards SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL').bind(Date.now(), b[1]).run();
+    if (!meta.changes) throw new HttpError(404, 'That board’s gone');
+    ctx.waitUntil(broadcast(env, 'board', { id: b[1], deleted: true }));
+    return json({ ok: true });
+  }
+  if (b && b[2] && method === 'PUT') {
+    const author = clean((await readJSON(request)).author, NAME_MAX) || null;
+    const ok = await env.DB.prepare(`SELECT (SELECT 1 FROM boards WHERE id = ? AND deleted_at IS NULL) AS board,
+      (SELECT 1 FROM pins WHERE id = ? AND deleted_at IS NULL AND kind != 'comment') AS pin`).bind(b[1], b[2]).first();
+    if (!ok?.board) throw new HttpError(404, 'That board’s gone');
+    if (!ok.pin) throw new HttpError(404, 'That piece has been taken down');
+    await env.DB.prepare('INSERT OR IGNORE INTO board_pins (board_id, pin_id, added_by, added_at) VALUES (?, ?, ?, ?)')
+      .bind(b[1], b[2], author, Date.now()).run();
+    return boardChanged(env, ctx, b[1]);
+  }
+  if (b && b[2] && method === 'DELETE') {
+    await env.DB.prepare('DELETE FROM board_pins WHERE board_id = ? AND pin_id = ?').bind(b[1], b[2]).run();
+    return boardChanged(env, ctx, b[1]);
   }
 
   throw new HttpError(404, 'Not found');

@@ -15,6 +15,8 @@ export const state = {
     commentMax: 100, titleMax: 80, maxUploadMB: 250,
   },
   pins: new Map(),
+  boards: new Map(), // shared collections: { id, name, author, created_at, pins: [{ id, by, at }], ids }
+  board: params.get('board'), // the board being looked at, if any (it's in the address, so it can be shared)
   me: (() => { try { return JSON.parse(localStorage.getItem('pb.me')) || null; } catch { return null; } })(),
   tv: params.has('tv'),
   view: oneOf(saved('view'), ['wall', 'grid'], 'wall'),
@@ -41,6 +43,18 @@ export function remember(key, value) {
   } catch {}
 }
 
+// Keep a board from the API (or forget a deleted one), pieces in the order they were saved.
+export function keepBoard(b) {
+  if (b.deleted) return state.boards.delete(b.id);
+  b.pins.sort((x, y) => x.at - y.at);
+  b.ids = new Set(b.pins.map((x) => x.id));
+  state.boards.set(b.id, b);
+}
+export const boardsWith = (id) => [...state.boards.values()].filter((b) => b.ids.has(id));
+// Boards most recently made or added to come first.
+export const boardActivity = (b) => Math.max(b.created_at, b.pins.at(-1)?.at || 0);
+export const boardList = () => [...state.boards.values()].sort((a, b) => boardActivity(b) - boardActivity(a));
+
 export const pieces = () => [...state.pins.values()].filter((p) => !p.parent_id);
 export const childrenOf = (id) => [...state.pins.values()].filter((p) => p.parent_id === id).sort((a, b) => a.created_at - b.created_at);
 export const fromWebsite = (p) => p.origin === 'case-study' || p.origin === 'archive';
@@ -52,6 +66,7 @@ export const onTvs = (p) => !p.private;
 export function matches(p) {
   if (state.tv && !onTvs(p)) return false;
   if (!state.video && p.kind === 'video') return false;
+  if (state.board) return !!state.boards.get(state.board)?.ids.has(p.id); // a board holds our work and inspiration alike
   if (state.show === 'inspiration') return isInspiration(p);
   if (isInspiration(p)) return false;
   if (state.show === 'public' && p.private) return false;
@@ -79,7 +94,12 @@ export function selection(limit) {
   if (state.colour) {
     const score = new Map(list.map((p) => [p.id, closeness(p.colors, state.colour)]));
     list.sort((a, b) => score.get(b.id) - score.get(a.id));
-  } else if (state.order === 'new') list.sort((a, b) => b.created_at - a.created_at);
+  } else if (state.order === 'new') {
+    // On a board, newest means newest to the board.
+    const saved = state.board && new Map(state.boards.get(state.board)?.pins.map((x) => [x.id, x.at]));
+    const when = (p) => (saved && saved.get(p.id)) || p.created_at;
+    list.sort((a, b) => when(b) - when(a));
+  }
   else if (state.order === 'random') list = shuffle(list);
   else list = mix(list);
   return limit ? list.slice(0, limit) : list;

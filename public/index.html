@@ -25,12 +25,15 @@
     </svg>
   </a>
 
-  <button class="section" id="section" type="button" hidden aria-label="Back to all work"><em id="section-name"></em><span aria-hidden="true">&times;</span></button>
+  <button class="section" id="section" type="button" hidden aria-label="Back to all work"><svg class="section__heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3 4.7 13.2a4.6 4.6 0 0 1 6.5-6.5l.8.8.8-.8a4.6 4.6 0 0 1 6.5 6.5Z"/></svg><em id="section-name"></em><span aria-hidden="true">&times;</span></button>
 
   <nav class="nav" id="nav" aria-label="Pinboard">
     <button class="nav__add" id="add-btn" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15"/></svg>
       <span>Add</span>
+    </button>
+    <button class="nav__round nav__boards" id="boards-btn" type="button" aria-label="Boards" title="Boards" aria-expanded="false" aria-controls="boards-menu">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3 4.7 13.2a4.6 4.6 0 0 1 6.5-6.5l.8.8.8-.8a4.6 4.6 0 0 1 6.5 6.5Z"/></svg>
     </button>
     <button class="nav__round" id="view-btn" type="button">
       <svg class="i-grid" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="9"/><rect x="13" y="4" width="7" height="5"/><rect x="4" y="15" width="7" height="5"/><rect x="13" y="11" width="7" height="9"/></svg>
@@ -59,6 +62,16 @@
     </div>
     <p class="pop__hint">Closest colours go in the middle of the wall, or the top of the grid.</p>
     <button class="pop__row pop__row--centre" type="button" id="colour-clear" hidden>Clear colour</button>
+  </div>
+
+  <div class="pop pop--boards" id="boards-menu" hidden>
+    <p class="pop__label">Boards</p>
+    <div class="boards" id="boards-list"></div>
+    <form class="boards__new" id="board-new" novalidate>
+      <input type="text" id="board-new-name" maxlength="60" placeholder="New board" autocomplete="off" aria-label="New board name">
+      <button class="btn btn--accent" type="submit" disabled>Create</button>
+    </form>
+    <p class="pop__hint prototype-only">Prototype: boards are saved in this browser only, until Pinboard goes live.</p>
   </div>
 
   <div class="pop pop--more" id="more-menu" hidden>
@@ -154,12 +167,30 @@
         </label>
         <fieldset class="field chips" id="media-studio"></fieldset>
       </div>
+      <p class="field__note" id="media-board-note" hidden></p>
       <p class="field__note prototype-only">Prototype: this is saved in your browser only. Nobody else will see it until Pinboard goes live.</p>
       <p class="sheet__status" id="media-status" role="status"></p>
       <footer class="sheet__foot sheet__foot--end">
         <button class="btn btn--accent" id="media-submit" type="submit" disabled>Pin it</button>
       </footer>
     </form>
+  </dialog>
+
+  <!-- Save to a board -->
+  <dialog class="sheet sheet--small" id="save-sheet" aria-labelledby="save-heading">
+    <div class="sheet__inner">
+      <header class="sheet__head">
+        <h2 id="save-heading">Save to a <em>board</em></h2>
+        <button class="x" type="button" data-close aria-label="Close">&times;</button>
+      </header>
+      <div class="saving" id="saving"></div>
+      <div class="boards boards--save" id="save-list"></div>
+      <form class="boards__new" id="save-new" novalidate>
+        <input type="text" id="save-new-name" maxlength="60" placeholder="New board" autocomplete="off" aria-label="New board name">
+        <button class="btn btn--accent" type="submit" disabled>Create and save</button>
+      </form>
+      <p class="field__note prototype-only">Prototype: boards are saved in this browser only. Nobody else will see them until Pinboard goes live.</p>
+    </div>
   </dialog>
 
   <!-- Homepage -->
@@ -211,6 +242,10 @@
             <button type="submit" class="btn btn--accent">Save</button>
           </div>
         </form>
+      </div>
+      <div class="focus__boards">
+        <button type="button" class="focus__save" id="focus-save"></button>
+        <p class="focus__on" id="focus-on"></p>
       </div>
       <div class="focus__palette" id="focus-palette" aria-label="Colours in this piece"></div>
       <div class="focus__visibility" id="focus-visibility">

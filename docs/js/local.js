@@ -1,6 +1,6 @@
 // The GitHub Pages prototype has no server, so what people add there (work,
-// inspiration, comments) is kept in their own browser, in IndexedDB, until
-// Pinboard goes live. Nobody else sees it. The live version never uses this.
+// inspiration, comments, boards) is kept in their own browser, in IndexedDB,
+// until Pinboard goes live. Nobody else sees it. The live version never uses this.
 
 const isLocal = (id) => typeof id === 'string' && id.startsWith('local');
 export const isLocalPin = (p) => isLocal(p?.id);
@@ -8,10 +8,12 @@ export const isLocalPin = (p) => isLocal(p?.id);
 let opening = null;
 function db() {
   opening ||= new Promise((resolve, reject) => {
-    const req = indexedDB.open('pinboard-prototype', 1);
+    const req = indexedDB.open('pinboard-prototype', 2);
     req.onupgradeneeded = () => {
-      req.result.createObjectStore('pins', { keyPath: 'id' });
-      req.result.createObjectStore('files');
+      const have = req.result.objectStoreNames;
+      if (!have.contains('pins')) req.result.createObjectStore('pins', { keyPath: 'id' });
+      if (!have.contains('files')) req.result.createObjectStore('files');
+      if (!have.contains('boards')) req.result.createObjectStore('boards', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -102,3 +104,41 @@ export async function removePin(id) {
   for (const p of pins) if (p.id === id || p.parent_id === id) await ask('pins', 'readwrite', (s) => s.delete(p.id));
   return { ok: true };
 }
+
+// Boards, the same shape the live API sends: { id, name, author, created_at, pins: [{ id, by, at }] }.
+export async function localBoards() {
+  try { return await ask('boards', 'readonly', (s) => s.getAll()); } catch { return []; }
+}
+
+async function changeBoard(id, change) {
+  const board = await ask('boards', 'readonly', (s) => s.get(id));
+  if (!board) throw new Error('That board’s gone');
+  change(board);
+  await ask('boards', 'readwrite', (s) => s.put(board));
+  return board;
+}
+
+export async function createBoard(body) {
+  const name = clean(body.name, 60);
+  if (!name) throw new Error('Give the board a name');
+  const board = { id: `local${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, name, author: clean(body.author, 40) || null, created_at: Date.now(), pins: [] };
+  await ask('boards', 'readwrite', (s) => s.put(board));
+  return board;
+}
+
+export function renameBoard(id, body) {
+  const name = clean(body.name, 60);
+  if (!name) throw new Error('Give the board a name');
+  return changeBoard(id, (b) => { b.name = name; });
+}
+
+export async function removeBoard(id) {
+  await ask('boards', 'readwrite', (s) => s.delete(id));
+  return { ok: true };
+}
+
+export const saveToBoard = (id, pinId, body) => changeBoard(id, (b) => {
+  if (!b.pins.some((x) => x.id === pinId)) b.pins.push({ id: pinId, by: clean(body?.author, 40) || null, at: Date.now() });
+});
+
+export const takeOffBoard = (id, pinId) => changeBoard(id, (b) => { b.pins = b.pins.filter((x) => x.id !== pinId); });

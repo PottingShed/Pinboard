@@ -1,8 +1,8 @@
-// Building the things that go on the wall: pieces of work, palette cards, and
-// the dot that says a piece has comments.
+// Building the things that go on the wall: pieces of work, palette cards, the
+// dot that says a piece has comments, and the heart for saving it to a board.
 
 import { h, fileUrl, hash, fmtDate } from './util.js';
-import { childrenOf } from './store.js';
+import { childrenOf, boardsWith } from './store.js';
 
 // Brand colours dark enough to need light text on them.
 export const DARK_COLOURS = new Set(['#245FFF']);
@@ -55,7 +55,21 @@ export function buildPiece(p, w, hgt, { fixings = true, lazy = false, defer = fa
   if (strips) el.append(tape(p.id, ...strips));
   const dot = commentDot(p.id);
   if (dot) el.append(dot);
+  el.append(heart(p.id));
   return el;
+}
+
+// The heart shows in a piece's corner under the pointer; tap it to save the
+// piece to a board. It's filled in once the piece is on one.
+export const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3 4.7 13.2a4.6 4.6 0 0 1 6.5-6.5l.8.8.8-.8a4.6 4.6 0 0 1 6.5 6.5Z"/></svg>';
+function heart(id) {
+  const b = h('button', { type: 'button', class: `heart${boardsWith(id).length ? ' is-saved' : ''}`, tabindex: '-1', 'aria-label': 'Save to a board' });
+  b.innerHTML = HEART;
+  return b;
+}
+export function refreshHeart(id) {
+  const saved = boardsWith(id).length > 0;
+  for (const b of document.querySelectorAll(`[data-id="${CSS.escape(id)}"] > .heart`)) b.classList.toggle('is-saved', saved);
 }
 
 function tape(id, kind, n) {

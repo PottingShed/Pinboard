@@ -2,9 +2,10 @@
 // updates and TV mode together.
 
 import { $, $$, h, sleep, api, toast, fmtDate, fileUrl, hash, reduceMotion, PREVIEW } from './util.js';
-import { state, remember, childrenOf, selection, matches, fromWebsite, isInspiration, onTvs } from './store.js';
+import { state, remember, childrenOf, selection, matches, fromWebsite, isInspiration, onTvs, boardsWith } from './store.js';
 import { analyse, hsv, toHex, fromHex, toHsv } from './colour.js';
-import { DARK_COLOURS, describe } from './pieces.js';
+import { DARK_COLOURS, describe, refreshHeart, HEART } from './pieces.js';
+import { initBoards, loadBoards, applyBoard, renderMenu, menuClosed, openSave, saveTo } from './boards.js';
 import { createWall } from './wall.js';
 import { createGrid } from './grid.js';
 import { kindOf, prepImage, prepVideo, uploadBlob } from './upload.js';
@@ -129,25 +130,31 @@ function render() {
 }
 
 function updateChrome(list) {
+  const board = state.boards.get(state.board);
   if (list) {
-    const inspiration = state.show === 'inspiration';
-    const filteredOut = state.pins.size && !inspiration && !state.video; // e.g. nothing but video, and video's off
+    const inspiration = !board && state.show === 'inspiration';
+    // e.g. nothing but video, and video's off
+    const filteredOut = !state.video && (board ? board.ids.size > 0 : state.pins.size && !inspiration);
     $('#empty').hidden = list.length > 0;
-    $('#empty-text').replaceChildren(...(inspiration
-      ? ['No ', h('em', {}, 'inspiration'), ' pinned yet.']
-      : state.show === 'public' && !filteredOut
-        ? ['No ', h('em', {}, 'public'), ' work yet.']
-        : filteredOut
-        ? ['Nothing to show', h('br'), 'with video ', h('em', {}, 'off'), '.']
-        : ['The wall’s bare.', h('br'), 'Pin the ', h('em', {}, 'first'), ' thing.']));
-    $('#empty-add').textContent = inspiration ? 'Add inspiration' : 'Add work';
+    $('#empty-text').replaceChildren(...(filteredOut
+      ? ['Nothing to show', h('br'), 'with video ', h('em', {}, 'off'), '.']
+      : board
+        ? ['Nothing on ', h('em', {}, board.name), ' yet.', h('br'), h('small', {}, 'Tap the heart on any piece to save it here.')]
+        : inspiration
+          ? ['No ', h('em', {}, 'inspiration'), ' pinned yet.']
+          : state.show === 'public'
+            ? ['No ', h('em', {}, 'public'), ' work yet.']
+            : ['The wall’s bare.', h('br'), 'Pin the ', h('em', {}, 'first'), ' thing.']));
+    $('#empty-add').textContent = board ? 'Back to all work' : inspiration ? 'Add inspiration' : 'Add work';
     $('#empty-clear').hidden = !filteredOut;
     $('#empty-clear').textContent = 'Turn video on';
   }
 
-  // In Public or Inspiration, a label by the logo says so, with a way back to All.
-  $('#section').hidden = state.show === 'all' || state.tv;
-  $('#section-name').textContent = state.show;
+  // On a board, or in Public or Inspiration, a label by the logo says so, with a way back.
+  $('#section').hidden = state.tv || (!board && state.show === 'all');
+  $('#section').classList.toggle('section--board', !!board);
+  $('#section-name').textContent = board ? board.name : state.show;
+  $('#boards-btn').classList.toggle('is-on', !!board);
   $('#video-switch').checked = state.video;
 
   const toGrid = state.view === 'wall';
@@ -164,7 +171,7 @@ function updateChrome(list) {
   for (const seg of $$('.pop__seg')) {
     const group = seg.dataset.group;
     for (const b of $$('button', seg)) {
-      b.setAttribute('aria-pressed', String(state[group] === b.dataset.value && !(group === 'order' && state.colour)));
+      b.setAttribute('aria-pressed', String(state[group] === b.dataset.value && !(group === 'order' && state.colour) && !(group === 'show' && state.board)));
     }
   }
 }
@@ -188,6 +195,7 @@ function clearColour() {
 // ------------------------------------------------------------------ the pill and its menus
 
 const pops = {
+  boards: [$('#boards-btn'), $('#boards-menu')],
   colour: [$('#colour-btn'), $('#colour-menu')],
   more: [$('#more-btn'), $('#more-menu')],
 };
@@ -199,10 +207,13 @@ function togglePop(name, force) {
     btn.setAttribute('aria-expanded', String(open));
   }
   if (!pops.colour[1].hidden) openWheel();
+  if (!pops.boards[1].hidden) renderMenu();
+  else menuClosed();
 }
 const closePops = () => togglePop(null);
 
 $('#add-btn').addEventListener('click', () => { closePops(); openMedia(); });
+$('#boards-btn').addEventListener('click', () => togglePop('boards'));
 $('#colour-btn').addEventListener('click', () => togglePop('colour'));
 $('#more-btn').addEventListener('click', () => togglePop('more'));
 // Clicking away from an open menu just closes it; it doesn't also open whatever was underneath.
@@ -225,6 +236,7 @@ $('#more-menu').addEventListener('click', (e) => {
   const group = b.closest('.pop__seg').dataset.group;
   remember(group, b.dataset.value);
   if (group === 'order') remember('colour', null); // picking an order replaces sorting by colour
+  if (group === 'show' && state.board) return openBoard(null); // and what to show, the board
   render();
 });
 $('#shuffle-btn').addEventListener('click', () => { closePops(); render(); });
@@ -244,8 +256,63 @@ $('#home-copy').addEventListener('click', async () => {
   }
 });
 $('#empty-clear').addEventListener('click', () => setVideo(true));
-$('#empty-add').addEventListener('click', () => openMedia());
-$('#section').addEventListener('click', () => { remember('show', 'all'); render(); });
+$('#empty-add').addEventListener('click', () => (state.board ? openBoard(null) : openMedia()));
+$('#section').addEventListener('click', () => {
+  if (state.board) return openBoard(null);
+  remember('show', 'all');
+  render();
+});
+
+// ------------------------------------------------------------------ boards
+
+// Put a board in the address (or take it out), so the link can be shared and
+// a TV can be pointed at a board.
+function setBoard(id) {
+  state.board = id && state.boards.has(id) ? id : null;
+  const url = new URL(location.href);
+  if (state.board) url.searchParams.set('board', state.board);
+  else url.searchParams.delete('board');
+  history.replaceState(null, '', url);
+}
+
+// Look at one board, or (with null) go back to all the work.
+function openBoard(id) {
+  setBoard(id);
+  closePops();
+  render();
+}
+
+// If the board in the address has gone (deleted, or a wrong link), go back to
+// all the work. Says whether it was still there.
+function checkBoard() {
+  if (!state.board || state.boards.has(state.board)) return true;
+  setBoard(null);
+  return false;
+}
+
+// A board changed, here or on someone else's screen: fill in the hearts, and
+// if it's the board on screen, bring pieces in or take them off.
+function boardChanged({ id, added, removed, deleted }) {
+  for (const pid of [...added, ...removed]) refreshHeart(pid);
+  if (focusId) renderSaved(state.pins.get(focusId));
+  if (id !== state.board) return;
+  if (deleted) {
+    openBoard(null);
+    toast('That board has just been deleted.');
+    return;
+  }
+  // A board is small enough to lay out afresh. The TVs keep still and just
+  // take pieces down or put them up.
+  if (!state.tv) return render();
+  for (const pid of removed) view.remove(pid);
+  for (const pid of added) {
+    const p = state.pins.get(pid);
+    if (p && matches(p) && !view.has(pid)) putUp(p, 'arrive');
+  }
+  showing = selection();
+  updateChrome(showing);
+}
+initBoards({ open: openBoard, changed: boardChanged });
 
 function setVideo(on) {
   remember('video', on ? null : 'off'); // stored as 'off' or nothing…
@@ -364,6 +431,7 @@ function tap(id, hit) {
     return;
   }
   const p = state.pins.get(id);
+  if (p && hit?.closest?.('.heart')) return openSave(p);
   if (p) openFocus(p.parent_id ? state.pins.get(p.parent_id) || p : p);
 }
 
@@ -402,6 +470,9 @@ function openMedia(files = []) {
     // in the inspiration section, what you add is inspiration
     $('#media-form').elements.origin.value = state.show === 'inspiration' ? 'inspiration' : 'studio';
     showOrigin();
+    const board = state.boards.get(state.board);
+    $('#media-board-note').hidden = !board;
+    $('#media-board-note').textContent = board ? `It goes on the wall, and on ${board.name} too.` : '';
   }
   $('#media-name').value = state.me?.name || '';
   $('#media-studio').replaceChildren(h('legend', {}, 'Studio'), ...state.config.studios.map((s) => h('label', {}, [
@@ -513,6 +584,7 @@ $('#media-form').addEventListener('submit', async (e) => {
       const src = await uploadBlob(prepped.full, (f) => setMediaStatus(`Uploading${n} · ${Math.round(f * 100)}%`));
       const thumb = prepped.thumb ? await uploadBlob(prepped.thumb) : null;
       last = await create({ kind: item.kind, src, thumb, nat_w: prepped.w, nat_h: prepped.h, size, title, description, colors: prepped.colors, private: isPrivate, origin, source });
+      if (state.board) await saveTo(state.board, last.id); // added while looking at a board: it goes on the board too
       URL.revokeObjectURL(item.url);
       media.items.shift();
       renderPreviews();
@@ -589,6 +661,7 @@ function openFocus(p) {
   })));
   renderDescription(p);
   renderVisibility(p);
+  renderSaved(p);
   renderComments();
   $('#comment-name').value = state.me?.name || '';
   $('#focus-open').href = fileUrl(p.src);
@@ -688,6 +761,26 @@ function resetRemove() {
 }
 
 focus.addEventListener('close', () => { $('#focus-media').replaceChildren(); focusId = null; });
+
+// Saving to boards from a closer look, and which boards it's on already.
+function renderSaved(p) {
+  if (!p) return;
+  const on = boardsWith(p.id);
+  const b = $('#focus-save');
+  b.classList.toggle('is-saved', on.length > 0);
+  b.innerHTML = `${HEART}<span>${on.length ? 'Saved' : 'Save'}</span>`;
+  b.setAttribute('aria-label', on.length ? 'Saved. Change boards' : 'Save to a board');
+  $('#focus-on').replaceChildren(...(on.length
+    ? ['On ', ...on.flatMap((x, i) => [i ? (i === on.length - 1 ? ' and ' : ', ') : '', h('button', { type: 'button', 'data-board': x.id }, x.name)])]
+    : []));
+}
+$('#focus-save').addEventListener('click', () => { const p = state.pins.get(focusId); if (p) openSave(p); });
+$('#focus-on').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-board]');
+  if (!b) return;
+  focus.close();
+  openBoard(b.dataset.board);
+});
 $('#focus-media').addEventListener('click', (e) => { if (e.target === e.currentTarget) focus.close(); });
 
 // Comments: a short note and your name, kept with the piece wherever it lands.
@@ -809,6 +902,7 @@ addEventListener('keydown', (e) => {
     case 'ArrowRight': if (onWall) wall.pan(160, 0); break;
     case 'ArrowUp': if (onWall) wall.pan(0, -160); break;
     case 'ArrowDown': if (onWall) wall.pan(0, 160); break;
+    case 'b': togglePop('boards'); break;
     case 'g': $('#view-btn').click(); break;
     case 's': render(); break;
     case 't': setTv(!state.tv); break;
@@ -917,6 +1011,7 @@ function connect() {
     if (type === 'pin') onNewPin(data);
     else if (type === 'update') onUpdated(data);
     else if (type === 'remove') takeDown(data.id);
+    else if (type === 'board') applyBoard(data);
   });
   live.addEventListener('close', () => {
     clearInterval(ping);
@@ -930,8 +1025,9 @@ let lastTouched = Date.now();
 for (const type of ['pointerdown', 'wheel', 'keydown']) addEventListener(type, () => { lastTouched = Date.now(); }, { capture: true, passive: true });
 async function refresh() {
   try {
-    const { pins } = await api('/api/pins');
+    const [{ pins }] = await Promise.all([api('/api/pins'), loadBoards()]);
     state.pins = new Map(pins.map((p) => [p.id, p]));
+    checkBoard();
     gaps.length = 0;
     render();
   } catch {}
@@ -944,6 +1040,9 @@ async function resync() {
     const ids = new Set(pins.map((p) => p.id));
     for (const id of [...state.pins.keys()]) if (!ids.has(id)) takeDown(id);
     for (const p of pins) if (!state.pins.has(p.id)) onNewPin(p);
+    await loadBoards();
+    if (!checkBoard() || state.board) render();
+    else for (const id of state.pins.keys()) refreshHeart(id);
   } catch {}
 }
 
@@ -1066,12 +1165,13 @@ async function boot() {
   setAccent();
   document.body.classList.toggle('tv', state.tv);
   try {
-    const [config, { pins }] = await Promise.all([api('/api/config'), api('/api/pins')]);
+    const [config, { pins }] = await Promise.all([api('/api/config'), api('/api/pins'), loadBoards().catch(() => {})]);
     state.config = config;
     for (const p of pins) state.pins.set(p.id, p);
   } catch (err) {
     toast(err.message);
   }
+  if (!checkBoard()) toast('That board isn’t here any more.');
   if (!state.tv) render(); // setTv draws it for the TVs
   if (!PREVIEW) connect(); // the preview is a snapshot: nothing to listen for
 
