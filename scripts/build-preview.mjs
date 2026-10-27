@@ -1,5 +1,6 @@
-// Builds a view-only copy of Pinboard into preview/, for a static host such as
-// GitHub Pages: the site, plus a snapshot of the wall and its images.
+// Builds a view-only copy of Pinboard into docs/, which GitHub Pages serves
+// (Settings → Pages → main, /docs): the site, plus a snapshot of the wall and
+// its images.
 //
 //   npm run dev                          (in another terminal)
 //   node scripts/build-preview.mjs       (reads http://localhost:8787 by default)
@@ -13,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.join(ROOT, 'preview');
+const OUT = path.join(ROOT, 'docs');
 const BASE = (process.env.PINBOARD_URL || 'http://localhost:8787').replace(/\/$/, '');
 const MAX_VIDEO = 12 * 1024 * 1024;
 
@@ -63,4 +64,4 @@ const comments = pins.filter((p) => p.kind === 'comment' && p.author === 'Pinboa
 
 fs.writeFileSync(path.join(OUT, 'data', 'pins.json'), JSON.stringify({ pins: [...kept, ...comments] }));
 fs.writeFileSync(path.join(OUT, 'data', 'config.json'), JSON.stringify(config));
-console.log(`\nPreview built in preview/: ${kept.length} pieces (${skipped} left out: private or big videos), ${Math.round(bytes / 1e6)}MB of media.`);
+console.log(`\nPreview built in docs/: ${kept.length} pieces (${skipped} left out: private or big videos), ${Math.round(bytes / 1e6)}MB of media.`);

@@ -91,7 +91,7 @@ Leave out `PINBOARD_URL` to import into the local copy instead, and add `PINBOAR
 
 ## The view-only preview (GitHub Pages)
 
-For showing it round before it's live, `npm run preview` builds a view-only copy into `preview/` from the local copy (`npm run dev` must be running). It reads a snapshot of the wall instead of the API, hides adding, comments and changes, and works from any static host, including a GitHub Pages subfolder. Because a Pages site is public, it only includes public work, uses the 960px images and leaves out videos over 12MB (about 190MB in all). Publish the contents of `preview/` to the `gh-pages` branch.
+For showing it round before it's live, `npm run preview` builds a view-only copy into `docs/` from the local copy (`npm run dev` must be running). GitHub Pages serves it from there (Settings → Pages → `main`, `/docs`). It reads a snapshot of the wall instead of the API and hides adding, comments and changes. Because a Pages site is public, it only includes public work, uses the 960px images and leaves out videos over 12MB (about 190MB in all). Once Pinboard is live on Cloudflare, `docs/` can be deleted.
 
 ## Setting up the studio TVs
 
