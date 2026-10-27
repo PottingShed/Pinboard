@@ -12,11 +12,11 @@ Potting Shed's shared studio wall at **pinboard.pottingshed.com**. Anyone in Gue
 - **Colour.** Pick any colour on the wheel and the wall sorts itself by it: closest in the middle (or the top of the grid). Tap a colour on a palette card, or in a piece's colour bar, to do the same.
 - **Order and video.** Newest (the default), Mix or Random. Video can be switched off in the ⌄ menu for anyone who finds moving work distracting; it's remembered per person.
 - **Live.** New work and comments appear on every open screen straight away, without fuss. Every five minutes the wall is also redrawn with the latest work (on people's own screens, only once they've left it alone for a couple of minutes).
-- **Hands-free (TV) mode** (`?tv=1`). Public work only. The Potting Shed logo sits big in the middle and changes brand colour every minute. The wall holds still: every 10 seconds one of the older pieces on screen comes down, and 5 seconds later something else goes up in the gap, so it evolves one piece at a time. New public work goes up the same way. Comments just add their dot. The grid version creeps very slowly.
+- **TV mode** (the screen button in the nav, or `?tv=1`). Public work only. The Potting Shed logo sits big in the middle and changes brand colour every minute. The wall holds still: every 10 seconds one of the older pieces on screen comes down, and 5 seconds later something else goes up in the gap, so it evolves one piece at a time. New public work goes up the same way. Comments just add their dot. The grid version creeps very slowly.
 - **The logo** is a different brand colour on every visit. Click it for a fresh arrangement.
 - **Homepage.** The ⌄ menu has instructions for setting it as your browser homepage.
 
-Keys: `G` grid/wall, `S` shuffle, `F` fit, `+`/`-` zoom, `T` hands-free, `Esc` leave. In an open piece, `←`/`→` go to the previous and next.
+Keys: `G` grid/wall, `S` shuffle, `F` fit, `+`/`-` zoom, `T` TV mode, `Esc` leave. In an open piece, `←`/`→` go to the previous and next.
 
 ## How it's hosted
 

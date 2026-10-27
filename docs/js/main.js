@@ -1,5 +1,5 @@
 // Pinboard: ties the two views, the menus, adding work, comments, live
-// updates and hands-free (TV) mode together.
+// updates and TV mode together.
 
 import { $, $$, h, sleep, api, toast, fmtDate, fileUrl, hash, PREVIEW } from './util.js';
 import { state, remember, childrenOf, selection, matches, fromWebsite, isInspiration, onTvs } from './store.js';
@@ -903,7 +903,7 @@ async function resync() {
   } catch {}
 }
 
-// ------------------------------------------------------------------ hands-free (TV) mode
+// ------------------------------------------------------------------ TV mode
 //
 // On the studio screens the board looks after itself, with the logo big in the
 // middle and changing colour every minute. The wall holds still and the grid

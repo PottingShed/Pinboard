@@ -52,8 +52,8 @@ So nothing gets undone by accident:
 - **Palette cards:** at most five, and only for client work.
 - **Tape:** used sparingly, no pins.
 - **No animation or announcements.** New work just appears: no drop-ins, no "just pinned" cards, no toasts. Only errors show a message.
-- **New work defaults to Private** (studio only). Hands-free mode shows public work only.
-- **Hands-free mode:**
+- **New work defaults to Private** (studio only). TV mode shows public work only.
+- **TV mode** (its own button in the nav):
   - The wall holds still. Every 10 seconds an older piece on screen comes down, and 5 seconds later the next piece goes up in its gap.
   - The logo sits big in the middle and changes brand colour every minute.
   - Comments only add their dot, never their text.
