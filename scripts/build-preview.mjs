@@ -1,6 +1,6 @@
-// Builds a view-only copy of Pinboard into docs/, which GitHub Pages serves
+// Builds the prototype of Pinboard into docs/, which GitHub Pages serves
 // (Settings → Pages → main, /docs): the site, plus a snapshot of the wall and
-// its images.
+// its images. What people add there is kept in their own browser (local.js).
 //
 //   npm run dev                          (in another terminal)
 //   node scripts/build-preview.mjs       (reads http://localhost:8787 by default)
@@ -28,7 +28,7 @@ fs.mkdirSync(path.join(OUT, 'data'), { recursive: true });
 fs.mkdirSync(path.join(OUT, 'files'), { recursive: true });
 fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
 
-// Mark the page as the preview, so it reads the snapshot and hides adding/changing.
+// Mark the page as the prototype, so it reads the snapshot and saves additions in the browser.
 const indexFile = path.join(OUT, 'index.html');
 fs.writeFileSync(indexFile, fs.readFileSync(indexFile, 'utf8').replace('<html lang="en">', '<html lang="en" data-preview>'));
 

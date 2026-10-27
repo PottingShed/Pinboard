@@ -56,6 +56,10 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   -webkit-user-select: none;
 }
 .wall.panning { cursor: grabbing; }
+/* Holding space: a hand that moves round the work without picking anything up */
+.hand .wall, .hand .grid { cursor: grab; }
+.hand .wall.panning, .hand .grid.panning { cursor: grabbing; }
+.hand .wall *, .hand .grid * { cursor: inherit !important; }
 .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .world.moving { will-change: transform; }
 .fade-in { animation: fade-in 0.4s ease both; }
@@ -210,11 +214,21 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   display: block;
   width: clamp(150px, 14vw, 260px);
   color: var(--accent);
-  transition: transform 0.4s var(--ease);
 }
-.logo:hover { transform: rotate(-2deg) scale(1.03); }
+.logo svg { display: block; width: 100%; height: auto; overflow: visible; }
 .logo svg path { transition: fill 2s var(--ease); }
-.logo svg { display: block; width: 100%; height: auto; }
+.logo:hover svg path { transition-duration: 0.5s; }
+/* Hover the logo and its leaves hop, left to right */
+.logo .leaf { transform-box: fill-box; transform-origin: 50% 100%; }
+.logo--hop .leaf { animation: leaf-hop 0.62s calc(var(--i) * 85ms) both; }
+@keyframes leaf-hop {
+  0% { transform: none; animation-timing-function: cubic-bezier(0.33, 0, 0.67, 1); }
+  14% { transform: scale(1.08, 0.86); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  48% { transform: translateY(-130%) scale(0.95, 1.06); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.5); }
+  80% { transform: scale(1.06, 0.9); animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .logo--hop .leaf { animation: none; } }
 
 /* The inspiration section's label, beside the logo; click it to go back */
 .section {
@@ -397,28 +411,6 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .pop__switch input:checked + i { background: var(--ink); }
 .pop__switch input:checked + i::after { transform: translateX(18px); }
 .pop__switch input:focus-visible + i { outline: 2px solid var(--ink); outline-offset: 3px; }
-.hover {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 25;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-width: 320px;
-  padding: 9px 14px 10px;
-  background: var(--ink);
-  color: var(--paper);
-  border-radius: 12px;
-  font-size: 15px;
-  line-height: 1.25;
-  pointer-events: none;
-}
-.hover b { font-weight: 400; }
-.hover span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey-light); }
-.hover span:empty,
-.hover i:empty { display: none; }
-.hover i { margin-top: 4px; font-family: var(--serif); font-weight: 500; font-size: 15px; }
 
 .zoom {
   position: fixed;
@@ -544,11 +536,10 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .dropzone p { margin: 0; font-size: clamp(40px, 7vw, 96px); letter-spacing: -0.02em; }
 
-/* TV: nothing but the work */
-.tv .nav,
-.tv .pop,
-.tv .zoom,
-.tv .hover { display: none !important; }
+/* TV: nothing but the work. The controls fade away as the logo glides to the middle. */
+.nav, .zoom { transition: opacity 0.5s var(--ease), visibility 0.5s; }
+.tv .nav, .tv .zoom { opacity: 0; visibility: hidden; }
+.tv .pop { display: none !important; }
 .tv .pin,
 .tv .tile { cursor: default; }
 .tv-exit {

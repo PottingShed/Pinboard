@@ -23,6 +23,7 @@ export const state = {
   // for the TVs and clients; inspiration: work that isn't ours, in its own section
   show: oneOf(saved('show'), ['all', 'public', 'inspiration'], 'all'),
   video: saved('video') !== 'off', // some people find moving work on screen distracting
+  hand: false, // space held: drag moves round the work instead of picking it up
   colour: hexOrNull(saved('colour')), // sort by closeness to this colour, when set
 };
 
