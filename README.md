@@ -80,7 +80,7 @@ Then open http://localhost:8787. Wrangler runs local copies of D1, R2 and the Du
 
 It's unlisted: every page and file tells search engines not to index it, and `robots.txt` turns crawlers away. For sign-in with studio Google or Microsoft accounts, put Cloudflare Access in front of it (free for up to 50 people).
 
-Keep the repo **private**. The brand fonts in `public/fonts/` are licensed to Potting Shed.
+The brand fonts in `public/fonts/` are licensed to Potting Shed. The repo is public for now so the preview can run on GitHub Pages; make it private once that isn't needed.
 
 ## Bringing in the website work
 

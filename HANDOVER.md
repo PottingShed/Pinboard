@@ -66,7 +66,7 @@ So nothing gets undone by accident:
 
 ## Good to know
 
-- **Keep the repo private.** The fonts in `public/fonts/` are licensed to Potting Shed.
+- **The repo is public for now** (Luke's call, 27 Oct 2026), at `PottingShed/Pinboard`, so the preview can run on GitHub Pages (`https://pottingshed.github.io/Pinboard/`). The fonts in `public/fonts/` are licensed to Potting Shed and can be downloaded from it, so it's worth making it private once the preview isn't needed.
 - **Wrangler is pinned at 4.149.0.** `npm audit` flags a library inside its local-dev emulator; nothing from it ships.
 - **Free plan limits:**
   - 100,000 Worker requests a day. Each image costs one the first time a browser sees it.
