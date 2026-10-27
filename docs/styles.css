@@ -467,8 +467,6 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .saving b { display: block; font-weight: 400; font-size: 18px; }
 .saving small { display: block; margin-top: 3px; font-size: 14px; color: var(--grey); }
 .pop__rows { display: flex; flex-direction: column; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--keyline); }
-.pop__tip { margin: 6px 10px 2px; color: var(--grey); }
-@media (hover: none) { .pop__tip { display: none; } }
 .pop__row {
   padding: 10px 10px;
   border: 0;
