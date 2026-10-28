@@ -172,13 +172,29 @@ function updateChrome(list) {
     for (const b of $$('button', seg)) {
       b.setAttribute('aria-pressed', String(state[group] === b.dataset.value && !(group === 'order' && state.colour) && !(group === 'show' && state.board)));
     }
+    slideThumb(seg);
   }
+}
+
+// The choice that's on has an ink pill under it, which slides across to the
+// next one. It can only be measured while its menu is open.
+function slideThumb(seg, still = false) {
+  const on = $('[aria-pressed="true"]', seg);
+  const appearing = seg.classList.contains('is-empty');
+  seg.classList.toggle('is-empty', !on);
+  if (!on?.offsetWidth) return;
+  seg.classList.toggle('is-still', still || appearing); // arrives in place rather than sliding from where it last was
+  seg.style.setProperty('--x', `${on.offsetLeft}px`);
+  seg.style.setProperty('--w', `${on.offsetWidth}px`);
+  void seg.offsetWidth;
+  seg.classList.remove('is-still');
 }
 
 // The nav's colour circle: the chosen colour, or the whole wheel when there isn't one.
 function showColour(hex) {
-  $('#colour-dot').style.background = hex || '';
-  $('#colour-dot').classList.toggle('is-set', !!hex);
+  const dot = $('#colour-dot');
+  if (hex) dot.style.setProperty('--set', hex); // kept when cleared, so it fades in its own colour
+  dot.classList.toggle('is-set', !!hex);
 }
 
 function sortByColour(hex) {
@@ -200,16 +216,62 @@ const pops = {
 };
 
 function togglePop(name, force) {
+  const changed = [];
   for (const [key, [btn, pop]] of Object.entries(pops)) {
     const open = key === name ? (force ?? pop.hidden) : false;
+    if (open !== pop.hidden) continue;
     pop.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
+    changed.push([btn, pop, open]);
   }
   if (!pops.colour[1].hidden) openWheel();
   if (!pops.boards[1].hidden) renderMenu();
   else menuClosed();
+  for (const [btn, pop, open] of changed) {
+    if (open) popIn(pop, btn);
+    else popOut(pop);
+  }
 }
 const closePops = () => togglePop(null);
+
+// A menu grows out of the button that opened it on a spring, its contents a
+// beat behind, and tucks back into it when it closes. A closing menu is hidden
+// straight away, so nothing thinks it's still open, but stays in sight as it goes.
+const SPRING = getComputedStyle(document.documentElement).getPropertyValue('--spring').trim();
+
+function popIn(pop, btn) {
+  for (const a of pop.getAnimations({ subtree: true })) a.cancel();
+  pop.classList.remove('is-leaving');
+  for (const seg of $$('.pop__seg', pop)) slideThumb(seg, true);
+  if (reduceMotion) return;
+  const b = btn.getBoundingClientRect();
+  const r = pop.getBoundingClientRect();
+  pop.style.transformOrigin = `${b.left + b.width / 2 - r.left}px ${b.top + b.height / 2 - r.top}px`;
+  pop.animate([{ scale: '0.82' }, { scale: '1' }], { duration: 560, easing: SPRING });
+  pop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+  $$(':scope > :not(.boards), :scope > .boards > *', pop).slice(0, 12).forEach((el, i) => el.animate(
+    [{ opacity: 0, translate: '0 10px' }, { opacity: 1, translate: '0 0' }],
+    { duration: 560, delay: 60 + i * 28, easing: SPRING, fill: 'backwards' },
+  ));
+}
+
+function popOut(pop) {
+  if (reduceMotion) return;
+  for (const a of pop.getAnimations({ subtree: true })) a.cancel();
+  pop.classList.add('is-leaving');
+  const out = pop.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '0.9' }], { duration: 170, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
+  out.onfinish = () => pop.classList.remove('is-leaving');
+}
+
+// Light catches the glass wherever the mouse is.
+for (const pane of $$('.glass')) {
+  pane.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const r = pane.getBoundingClientRect();
+    pane.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    pane.style.setProperty('--my', `${e.clientY - r.top}px`);
+  });
+}
 
 $('#add-btn').addEventListener('click', () => { closePops(); openMedia(); });
 $('#boards-btn').addEventListener('click', () => togglePop('boards'));

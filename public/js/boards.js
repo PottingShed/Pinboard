@@ -11,7 +11,7 @@ import { state, keepBoard, boardList } from './store.js';
 import { HEART } from './pieces.js';
 
 const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 12.5 3.6 3.6 7.4-8.2"/></svg>';
-const WALL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="7.5" width="9.5" height="11.5" transform="rotate(-7 8.25 13.25)"/><rect x="10.5" y="4" width="10" height="8" transform="rotate(6 15.5 8)"/></svg>';
+const WALL = '<svg viewBox="0 0 24 24" aria-hidden="true"><mask id="wall-cut-menu"><rect width="24" height="24" fill="#fff" stroke="none"/><rect x="9.6" y="3.1" width="11.8" height="9.8" transform="rotate(6 15.5 8)" fill="#000" stroke="none"/></mask><g mask="url(#wall-cut-menu)"><rect x="3.5" y="7.5" width="9.5" height="11.5" transform="rotate(-7 8.25 13.25)"/></g><rect x="10.5" y="4" width="10" height="8" transform="rotate(6 15.5 8)"/></svg>';
 
 let hooks = { open: () => {}, changed: () => {} };
 export const initBoards = (given) => { hooks = given; };

@@ -55,7 +55,8 @@ So nothing gets undone by accident:
 - **Everything shows** in both views; only media near the screen loads, and far-away media is let go.
 - **Boards** are shared and need no login: anyone can make one, save to it, rename or delete it. A ♡ shows on a piece under the pointer (nothing else does); the nav's ♡ lists boards. Opening TV mode on a board puts that board on the TVs (public pieces only).
 - **No hover captions** on pieces; the pointer is a small dot in the logo's colour. Hold space and drag to move round without picking anything up.
-- **The logo:** hover it for a new brand colour and a quick hop of its leaves, left to right. Going into TV mode it glides to the middle, and back again.
+- **The logo:** hover it for a new brand colour and a quick hop of its leaves, left to right. Going into TV mode it glides to the middle, centred on its "o" (not its box, which sits high), and back again.
+- **Glass:** the nav, its menus, the zoom and the section label are frosted glass. Menus grow from their button on a spring. The ♡ on a piece is small smoked glass, kept quiet.
 - **Sorting by colour** lasts for that visit only; the wall opens newest first.
 - **No animation or announcements.** New work just appears: no drop-ins, no "just pinned" cards, no toasts. Only errors show a message.
 - **New work defaults to Private** (studio only). TV mode shows public work only.

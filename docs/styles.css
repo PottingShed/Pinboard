@@ -21,7 +21,22 @@
   --serif: "Quarto", Georgia, "Times New Roman", serif;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --pop: cubic-bezier(0.3, 1.6, 0.5, 1);
+  --spring: cubic-bezier(0.25, 1.1, 0.4, 1); /* settles with a whisper of overshoot; a real spring below */
+  --spring-bouncy: cubic-bezier(0.3, 1.4, 0.5, 1); /* a little more give, for icons */
+  --glass: rgba(242, 242, 242, 0.5); /* the tint of the frosted panes */
+  --lift: rgba(255, 255, 255, 0.62); /* a row lit up on the glass */
+  --well: rgba(23, 23, 23, 0.06); /* a track pressed into the glass */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 0.07'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   color-scheme: light;
+}
+/* Real springs where browsers can draw them: damped springs sampled as easing curves */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* stiffness 300, damping 26: settles in about half a second */
+    --spring: linear(0, 0.031, 0.109, 0.213, 0.328, 0.445, 0.555, 0.656, 0.743, 0.816, 0.876, 0.923, 0.959, 0.986, 1.005, 1.017, 1.024, 1.027, 1.028, 1.027, 1.025, 1.022, 1.018, 1.015, 1.012, 1.009, 1.007, 1.005, 1.003, 1.002, 1.001, 1);
+    /* stiffness 340, damping 24 */
+    --spring-bouncy: linear(0, 0.041, 0.143, 0.278, 0.424, 0.567, 0.696, 0.806, 0.895, 0.962, 1.011, 1.042, 1.06, 1.067, 1.067, 1.061, 1.053, 1.043, 1.033, 1.024, 1.016, 1.01, 1.004, 1.001, 0.998, 0.996, 0.996, 0.995, 0.996, 0.996, 0.997, 1);
+  }
 }
 
 * { box-sizing: border-box; }
@@ -180,33 +195,36 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .dot--dark { color: var(--paper); }
 .tile .dot { left: 10px; top: 10px; min-width: 30px; height: 30px; padding: 0 9px; font-size: 14px; }
-/* The heart: shows in a piece's corner under the pointer; tap it to save to a board */
+/* The heart: a small bead of smoked glass in a piece's corner under the pointer,
+   quiet over any image. Point at it and it clears; tap it to save to a board. */
 .heart {
   position: absolute;
-  right: 22px;
-  bottom: 22px;
+  right: 18px;
+  bottom: 18px;
   z-index: 3;
   display: grid;
   place-items: center;
-  width: 68px;
-  height: 68px;
+  width: 54px;
+  height: 54px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: 0 2px 12px rgba(23, 23, 23, 0.14);
+  background-color: rgba(23, 23, 23, 0.16);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 60%);
+  color: #FFFFFF;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), inset 0 0 0 0.5px rgba(255, 255, 255, 0.25), 0 6px 16px -6px rgba(23, 23, 23, 0.35);
   opacity: 0;
-  transform: scale(0.85);
-  transition: opacity 0.18s, transform 0.3s var(--pop);
+  scale: 0.8;
+  transition: opacity 0.3s var(--ease), scale 0.5s var(--spring), background-color 0.25s var(--ease), color 0.25s var(--ease);
 }
-.heart svg { width: 46%; height: 46%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; transition: transform 0.3s var(--pop); }
-.heart:hover svg { transform: scale(1.12); }
+.heart svg { width: 44%; height: 44%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 1.5px rgba(23, 23, 23, 0.3)); transition: scale 0.5s var(--spring-bouncy), fill 0.2s; }
+.heart:hover { background-color: rgba(255, 255, 255, 0.72); color: var(--ink); }
+.heart:hover svg { scale: 1.12; filter: none; }
 .heart.is-saved svg { fill: var(--accent); }
 @media (hover: hover) {
-  .pin:hover > .heart { opacity: 1; transform: none; }
+  .pin:hover > .heart { opacity: 1; scale: 1; backdrop-filter: blur(12px) saturate(1.6); -webkit-backdrop-filter: blur(12px) saturate(1.6); }
 }
-.tile .heart { right: 10px; bottom: 10px; width: 40px; height: 40px; }
+.tile .heart { right: 10px; bottom: 10px; width: 36px; height: 36px; }
 .tv .heart, .hand .heart, .panning .heart, .dragging > .heart { display: none; }
 /* Arriving, moving, leaving */
 .pending { visibility: hidden; }
@@ -275,25 +293,70 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   align-items: center;
   gap: 8px;
   padding: 6px 12px 7px 14px;
-  border: 0;
   border-radius: 999px;
-  background: rgba(242, 242, 242, 0.92);
   color: var(--ink);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  animation: chip-in 0.6s var(--spring) backwards;
 }
+@keyframes chip-in { from { opacity: 0; translate: -10px 0; scale: 0.94; } }
 .section span { font-size: 18px; color: var(--grey); }
 .section__heart { display: none; width: 18px; height: 18px; fill: var(--accent); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
 .section--board .section__heart { display: block; }
 /* The nav's heart fills in while you're looking at a board */
-.nav__boards.is-on svg { fill: var(--accent); }
+.nav__boards.is-on svg { fill: var(--accent); animation: heart-on 0.6s var(--spring-bouncy); }
+@keyframes heart-on { from { scale: 0.5; } }
 .section:hover span { color: var(--ink); }
 .tile--gap { background: transparent; pointer-events: none; }
 
+/* ------------------------------------------------------------------ glass
+
+   The nav, its menus, the zoom and the section label are panes of frosted
+   glass. The wall shows through blurred and a touch brighter, with a fine
+   grain, a rim catching the light from the top left, a soft shadow beneath,
+   and a little light that follows the mouse across it (main.js). */
+
+.glass {
+  background: var(--grain), linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.18));
+  background-color: var(--glass);
+  border: 0;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.75),
+    inset 0 0 16px rgba(255, 255, 255, 0.28),
+    0 0 0 0.5px rgba(23, 23, 23, 0.12),
+    0 2px 6px rgba(23, 23, 23, 0.06),
+    0 18px 44px -12px rgba(23, 23, 23, 0.3);
+  backdrop-filter: blur(22px) saturate(1.9) brightness(1.05);
+  -webkit-backdrop-filter: blur(22px) saturate(1.9) brightness(1.05);
+}
+.glass::before,
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* the rim */
+.glass::before {
+  padding: 1px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.2) 30%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.12) 75%, rgba(255, 255, 255, 0.6));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* the light under the mouse */
+.glass::after {
+  background: radial-gradient(160px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 70%);
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+}
+@media (hover: hover) { .glass:hover::after { opacity: 1; } }
+
 .nav {
+  --rise: -10px;
   position: fixed;
   top: 16px;
   right: 16px;
@@ -302,54 +365,91 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   align-items: center;
   gap: 8px;
   padding: 7px;
-  background: rgba(242, 242, 242, 0.92);
-  border: 1px solid rgba(23, 23, 23, 0.08);
   border-radius: 999px;
-  box-shadow: 0 6px 24px rgba(23, 23, 23, 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  animation: pane-in 0.9s var(--spring) 0.1s backwards;
 }
+/* Arriving, the pane settles first, then its buttons land one after another */
+.nav > * { animation: bead-in 0.7s var(--spring-bouncy) calc(0.2s + var(--i) * 45ms) backwards; }
+@keyframes pane-in { from { opacity: 0; translate: 0 var(--rise); scale: 0.96; } }
+@keyframes bead-in { from { opacity: 0; scale: 0.6; } }
 .nav button {
   display: grid;
   place-items: center;
   height: 50px;
-  border: 1px solid rgba(23, 23, 23, 0.12);
+  border: 0;
   border-radius: 999px;
-  background: #FAFAFA;
+  background: transparent;
+  color: var(--ink);
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.3s var(--ease);
+  transition: background-color 0.3s var(--ease), box-shadow 0.3s var(--ease), color 0.3s var(--ease), scale 0.5s var(--spring-bouncy);
 }
-.nav button:hover { border-color: var(--ink); }
-.nav svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.nav svg .fill { fill: var(--ink); stroke: none; }
-/* Overlapping cards are filled, so the one on top hides the lines beneath */
-.nav .i-wall rect { fill: #FAFAFA; }
+/* A press sinks in, and springs back */
+.nav button:active { scale: 0.92; transition-duration: 0.3s, 0.3s, 0.3s, 0.1s; }
+/* Add and the round buttons are beads of clearer glass on the pane */
+.nav :is(.nav__add, .nav__round) {
+  background-color: rgba(255, 255, 255, 0.5);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 65%);
+  box-shadow:
+    inset 0 1px 0.5px #FFFFFF,
+    inset 0 -1px 1px rgba(23, 23, 23, 0.05),
+    0 0 0 0.5px rgba(23, 23, 23, 0.1),
+    0 1px 2px rgba(23, 23, 23, 0.08),
+    0 6px 14px -6px rgba(23, 23, 23, 0.24);
+}
+@media (hover: hover) {
+  .nav :is(.nav__add, .nav__round):hover {
+    background-color: rgba(255, 255, 255, 0.88);
+    box-shadow:
+      inset 0 1px 0.5px #FFFFFF,
+      inset 0 -1px 1px rgba(23, 23, 23, 0.05),
+      0 0 0 0.5px rgba(23, 23, 23, 0.14),
+      0 2px 4px rgba(23, 23, 23, 0.08),
+      0 10px 20px -8px rgba(23, 23, 23, 0.3);
+  }
+  .nav__more:hover { background-color: rgba(255, 255, 255, 0.45); }
+}
+.nav svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav svg .fill { fill: currentColor; stroke: none; }
 .nav__add { display: flex !important; gap: 10px; padding: 0 22px 0 16px; font-size: 19px; letter-spacing: -0.01em; }
-.nav__add[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.nav__add[aria-expanded="true"] svg { stroke: currentColor; }
-.nav__add[aria-expanded="true"] svg { transform: rotate(45deg); }
-.nav__add svg { transition: transform 0.35s var(--ease); }
+.nav__add svg { transition: rotate 0.6s var(--spring-bouncy); }
+/* Open, Add takes the brand colour and its plus turns to a cross */
+.nav .nav__add[aria-expanded="true"] { background-color: var(--accent); color: var(--on-accent); }
+.nav__add[aria-expanded="true"] svg { rotate: 45deg; }
 .nav__round { width: 50px; }
-.nav__round .i-wall,
-.nav__round.is-grid .i-grid { display: none; }
-.nav__round.is-grid .i-wall { display: block; }
-.nav__colour { width: 50px; padding: 0; border-color: transparent !important; background: transparent !important; }
+/* The view button's icons swap with a turn: the old one spins out as the new one spins in */
+.nav__round > svg { grid-area: 1 / 1; transition: opacity 0.25s var(--ease), scale 0.6s var(--spring-bouncy), rotate 0.6s var(--spring-bouncy); }
+.nav__round .i-wall { opacity: 0; scale: 0.4; rotate: -60deg; }
+.nav__round.is-grid .i-grid { opacity: 0; scale: 0.4; rotate: 60deg; }
+.nav__round.is-grid .i-wall { opacity: 1; scale: 1; rotate: 0deg; }
+.nav__colour { width: 50px; padding: 0; }
 .nav__dot {
+  position: relative;
   display: block;
   width: 44px;
   height: 44px;
   border-radius: 50%;
   background: conic-gradient(from 200deg, #FE1658, #FF840A, #FDE619, #69FF46, #01FECD, #12CDFF, #245FFF, #FF16A5, #FE1658);
-  transition: transform 0.3s var(--ease);
+  box-shadow: 0 0 0 0.5px rgba(23, 23, 23, 0.14), 0 6px 14px -6px rgba(23, 23, 23, 0.35);
+  transition: scale 0.6s var(--spring-bouncy);
 }
-.nav__dot.is-set { box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.12); }
+.nav__dot::before,
+.nav__dot::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+/* A chosen colour blooms out from the middle of the wheel */
+.nav__dot::before { background: var(--set, transparent); opacity: 0; scale: 0.2; transition: opacity 0.3s var(--ease), scale 0.6s var(--spring-bouncy); }
+.nav__dot.is-set::before { opacity: 1; scale: 1; }
+/* and either way it's a glass marble, lit from above */
+.nav__dot::after {
+  background: radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 40%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -4px 8px rgba(23, 23, 23, 0.16);
+}
 .nav__colour:hover .nav__dot,
-.nav__colour[aria-expanded="true"] .nav__dot { transform: scale(1.08); }
-.nav__more { width: 42px; border-color: transparent !important; background: transparent !important; }
-.nav__more[aria-expanded="true"] svg { transform: rotate(180deg); }
-.nav__more svg { transition: transform 0.3s var(--ease); }
+.nav__colour[aria-expanded="true"] .nav__dot { scale: 1.08; }
+.nav__more { width: 42px; }
+.nav__more svg { transition: rotate 0.6s var(--spring-bouncy); }
+.nav__more[aria-expanded="true"] svg { rotate: 180deg; }
 
 .pop {
+  --glass: rgba(246, 246, 246, 0.72); /* frostier than the nav, for reading */
   position: fixed;
   top: 88px;
   right: 16px;
@@ -359,13 +459,13 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   gap: 8px;
   width: 320px;
   padding: 12px;
-  background: var(--paper);
-  border: 1px solid rgba(23, 23, 23, 0.08);
   border-radius: 24px;
-  box-shadow: 0 10px 40px rgba(23, 23, 23, 0.12);
-  animation: menu-in 0.3s var(--ease) both;
+  backdrop-filter: blur(32px) saturate(1.8) brightness(1.04);
+  -webkit-backdrop-filter: blur(32px) saturate(1.8) brightness(1.04);
 }
-@keyframes menu-in { from { opacity: 0; transform: translateY(-8px); } }
+/* A menu that's closing is hidden straight away, but stays in sight while it
+   tucks back into its button (main.js) */
+.pop.is-leaving { display: flex !important; pointer-events: none; }
 .pop__hint { margin: -2px 6px 2px; font-size: 13px; line-height: 1.35; color: var(--grey-dark); }
 .pop__row small { display: block; margin-top: 2px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey); }
 .pop__row--centre { text-align: center; border: 1px solid var(--ink); border-radius: 999px; }
@@ -421,7 +521,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .wheel__hex { min-width: 64px; font-size: 13px; letter-spacing: 0.06em; color: var(--grey-dark); font-variant-numeric: tabular-nums; text-align: right; }
 
 .pop__label { margin: 6px 6px 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey); }
-.pop__seg { display: flex; gap: 4px; padding: 4px; background: #E6E6E6; border-radius: 999px; }
+.pop__seg { position: relative; isolation: isolate; display: flex; gap: 4px; padding: 4px; background: var(--well); border-radius: 999px; box-shadow: inset 0 1px 2px rgba(23, 23, 23, 0.08); }
 .pop__seg button {
   flex: 1;
   padding: 9px 8px;
@@ -430,18 +530,35 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   background: transparent;
   font-size: 15px;
   cursor: pointer;
+  transition: color 0.3s var(--ease);
 }
-.pop__seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.pop__seg button[aria-pressed="true"] { color: var(--paper); }
+/* The ink pill under the choice that's on slides across to the next one (main.js measures it) */
+.pop__seg::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  z-index: -1;
+  width: var(--w, 0);
+  translate: var(--x, 0) 0;
+  border-radius: 999px;
+  background: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 3px 8px -2px rgba(23, 23, 23, 0.35);
+  transition: translate 0.55s var(--spring), width 0.55s var(--spring), opacity 0.25s var(--ease);
+}
+.pop__seg.is-empty::before { opacity: 0; }
+.pop__seg.is-still::before { transition: none; }
 /* Boards, in the menu and the save sheet: a row each, with the newest piece as its cover */
 .pop--boards { width: 340px; }
 .boards { display: flex; flex-direction: column; gap: 2px; max-height: min(52vh, 440px); margin: 0 -4px; padding: 0 4px; overflow-y: auto; }
-.board { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px; border: 0; border-radius: 14px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.board { display: flex; align-items: center; gap: 12px; width: 100%; padding: 7px; border: 0; border-radius: 14px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 0.2s var(--ease); }
 .board:hover,
-.board[aria-pressed="true"] { background: #E6E6E6; }
-.board__cover { flex-shrink: 0; display: grid; place-items: center; width: 46px; height: 46px; overflow: hidden; border-radius: 10px; background: #E0E0E0; }
+.board[aria-pressed="true"] { background: var(--lift); }
+.board__cover { flex-shrink: 0; display: grid; place-items: center; width: 46px; height: 46px; overflow: hidden; border-radius: 10px; background: var(--well); }
 .board__cover img { width: 100%; height: 100%; object-fit: cover; }
 .board__cover svg { width: 20px; height: 20px; fill: none; stroke: var(--grey); stroke-width: 1.6; stroke-linejoin: round; }
-.board__cover svg rect { fill: #E0E0E0; }
 .board__text { flex: 1; min-width: 0; }
 .board__text b { display: block; overflow: hidden; font-weight: 400; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .board__text small { display: block; margin-top: 3px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey); }
@@ -451,7 +568,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .board__actions .is-armed { background: var(--ink); color: var(--paper); text-decoration: none; }
 .board__actions .is-armed:hover { color: var(--paper); }
 .boards__empty { margin: 4px 8px 6px; font-size: 15px; line-height: 1.4; color: var(--grey-dark); }
-.boards__new { display: flex; align-items: center; gap: 8px; padding: 5px 5px 5px 16px; background: #E6E6E6; border-radius: 999px; }
+.boards__new { display: flex; align-items: center; gap: 8px; padding: 5px 5px 5px 16px; background: var(--well); border-radius: 999px; box-shadow: inset 0 1px 2px rgba(23, 23, 23, 0.08); }
 .boards__new input { flex: 1; min-width: 0; padding: 8px 0; border: 0; background: transparent; font: inherit; font-size: 17px; color: var(--ink); outline: none; }
 .boards__new input::placeholder { color: var(--grey); }
 .boards__new .btn { padding: 10px 18px; font-size: 15px; white-space: nowrap; }
@@ -478,14 +595,15 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   font-size: 17px;
   text-align: left;
   cursor: pointer;
+  transition: background-color 0.2s var(--ease);
 }
-.pop__row:hover { background: #E6E6E6; }
-.pop__switch { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 10px; border-radius: 14px; font-size: 17px; cursor: pointer; }
-.pop__switch:hover { background: #E6E6E6; }
+.pop__row:hover { background: var(--lift); }
+.pop__switch { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 10px; border-radius: 14px; font-size: 17px; cursor: pointer; transition: background-color 0.2s var(--ease); }
+.pop__switch:hover { background: var(--lift); }
 .pop__switch small { display: block; margin-top: 2px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey); }
 .pop__switch input { position: absolute; opacity: 0; pointer-events: none; }
-.pop__switch i { position: relative; flex-shrink: 0; width: 44px; height: 26px; border-radius: 999px; background: #CFCFCF; transition: background 0.2s; }
-.pop__switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; transition: transform 0.2s var(--ease); }
+.pop__switch i { position: relative; flex-shrink: 0; width: 44px; height: 26px; border-radius: 999px; background: rgba(23, 23, 23, 0.16); box-shadow: inset 0 1px 2px rgba(23, 23, 23, 0.12); transition: background 0.25s var(--ease); }
+.pop__switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 3px rgba(23, 23, 23, 0.3); transition: transform 0.5s var(--spring-bouncy); }
 .pop__switch input:checked + i { background: var(--ink); }
 .pop__switch input:checked + i::after { transform: translateX(18px); }
 .pop__switch input:focus-visible + i { outline: 2px solid var(--ink); outline-offset: 3px; }
@@ -499,12 +617,9 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   align-items: center;
   gap: 2px;
   padding: 5px;
-  background: rgba(242, 242, 242, 0.92);
-  border: 1px solid rgba(23, 23, 23, 0.08);
   border-radius: 999px;
-  box-shadow: 0 6px 24px rgba(23, 23, 23, 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  --rise: 10px;
+  animation: pane-in 0.8s var(--spring) backwards;
 }
 .zoom button {
   display: grid;
@@ -516,10 +631,12 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   border-radius: 999px;
   background: transparent;
   cursor: pointer;
+  transition: background-color 0.25s var(--ease), scale 0.5s var(--spring-bouncy);
 }
-.zoom button:hover { background: rgba(23, 23, 23, 0.07); }
+.zoom button:hover { background: var(--lift); }
+.zoom button:active { scale: 0.9; transition-duration: 0.25s, 0.1s; }
 .zoom svg { width: 18px; height: 18px; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.zoom #zoom-level { min-width: 52px; font-size: 12px; letter-spacing: 0.04em; color: var(--grey); font-variant-numeric: tabular-nums; }
+.zoom #zoom-level { min-width: 52px; font-size: 12px; letter-spacing: 0.04em; color: var(--grey-dark); font-variant-numeric: tabular-nums; }
 .zoom #zoom-fit { border-left: 1px solid var(--keyline); border-radius: 0 999px 999px 0; margin-left: 2px; }
 @media (hover: none) { .zoom { display: none !important; } }
 
@@ -615,9 +732,11 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .dropzone p { margin: 0; font-size: clamp(40px, 7vw, 96px); letter-spacing: -0.02em; }
 
-/* TV: nothing but the work. The controls fade away as the logo glides to the middle. */
-.nav, .zoom { transition: opacity 0.5s var(--ease), visibility 0.5s; }
-.tv .nav, .tv .zoom { opacity: 0; visibility: hidden; }
+/* TV: nothing but the work. The controls drift off as the logo glides to the middle. */
+.nav, .zoom { transition: opacity 0.45s var(--ease), translate 0.7s var(--ease), scale 0.7s var(--ease), visibility 0.7s; }
+.tv .nav, .tv .zoom { opacity: 0; visibility: hidden; scale: 0.96; animation: none; }
+.tv .nav { translate: 0 -16px; }
+.tv .zoom { translate: 0 16px; }
 .tv .pop { display: none !important; }
 .tv .pin,
 .tv .tile { cursor: default; }
@@ -630,20 +749,25 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   padding: 12px 20px;
   border: 0;
   border-radius: 999px;
-  background: var(--ink);
+  background: rgba(23, 23, 23, 0.5);
   color: var(--paper);
   font-size: 16px;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
 }
 .tv:not(.idle) .tv-exit { display: block; }
 .tv.idle,
 .tv.idle * { cursor: none !important; }
-/* TV mode: the logo big in the middle of the screen */
+/* TV mode: the logo big in the middle of the screen, centred on its "o" rather
+   than its box, so the leaves above don't make it sit high. The o's middle is
+   10.1% of the logo's height above the box's (57.4 of 143.9). */
 .tv .logo {
   top: 50%;
   left: 50%;
   width: min(54vw, 1100px);
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -39.9%);
   pointer-events: none;
 }
 
@@ -660,8 +784,10 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .sheet--small { width: min(480px, calc(100vw - 32px)); }
 .sheet::backdrop { background: rgba(23, 23, 23, 0.6); }
-.sheet[open] { animation: sheet-in 0.4s var(--ease); }
-@keyframes sheet-in { from { opacity: 0; transform: translateY(16px); } }
+.sheet[open] { animation: sheet-in 0.6s var(--spring); }
+.sheet[open]::backdrop { animation: fade-in 0.35s var(--ease); }
+@keyframes sheet-in { from { opacity: 0; translate: 0 24px; scale: 0.98; } }
+@keyframes fade-in { from { opacity: 0; } }
 .sheet__inner { display: flex; flex-direction: column; gap: 26px; padding: 26px 30px 30px; }
 .sheet__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .sheet h2 { margin: 0; font-size: clamp(38px, 6vw, 58px); font-weight: 400; line-height: 1; letter-spacing: -0.02em; }
@@ -1014,11 +1140,12 @@ body.login { overflow: auto; display: grid; place-items: center; min-height: 100
 @media (max-width: 720px) {
   .logo { top: 16px; left: 16px; }
   .section { top: 14px; left: auto; right: 12px; font-size: 18px; }
-  .nav { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); right: 50%; transform: translateX(50%); gap: 6px; padding: 6px; }
+  .nav { --rise: 10px; top: auto; bottom: max(12px, env(safe-area-inset-bottom)); right: 50%; transform: translateX(50%); gap: 6px; padding: 6px; }
+  .tv .nav { translate: 0 16px; }
   .nav button { height: 46px; }
   .nav__round { width: 46px; }
   .nav__dot { width: 40px; height: 40px; }
-  .pop { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 72px); right: 50%; transform: translateX(50%); width: min(340px, calc(100vw - 24px)); animation: none; }
+  .pop { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 72px); right: 50%; transform: translateX(50%); width: min(340px, calc(100vw - 24px)); }
   .zoom { display: none !important; }
   #tv-btn { display: none; } /* TV mode is for the studio screens, and it makes room for Boards */
   .sheet {
