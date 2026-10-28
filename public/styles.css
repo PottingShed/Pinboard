@@ -23,10 +23,9 @@
   --pop: cubic-bezier(0.3, 1.6, 0.5, 1);
   --spring: cubic-bezier(0.25, 1.1, 0.4, 1); /* settles with a whisper of overshoot; a real spring below */
   --spring-bouncy: cubic-bezier(0.3, 1.4, 0.5, 1); /* a little more give, for icons */
-  --glass: rgba(242, 242, 242, 0.5); /* the tint of the frosted panes */
+  --glass: rgba(255, 255, 255, 0.14); /* the tint of the clear glass */
   --lift: rgba(255, 255, 255, 0.62); /* a row lit up on the glass */
   --well: rgba(23, 23, 23, 0.06); /* a track pressed into the glass */
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 0.07'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   color-scheme: light;
 }
 /* Real springs where browsers can draw them: damped springs sampled as easing curves */
@@ -195,8 +194,8 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .dot--dark { color: var(--paper); }
 .tile .dot { left: 10px; top: 10px; min-width: 30px; height: 30px; padding: 0 9px; font-size: 14px; }
-/* The heart: a small bead of smoked glass in a piece's corner under the pointer,
-   quiet over any image. Point at it and it clears; tap it to save to a board. */
+/* The heart: a small clear lens in a piece's corner under the pointer, quiet
+   over any image. Point at it and it whitens; tap it to save to a board. */
 .heart {
   position: absolute;
   right: 18px;
@@ -209,20 +208,22 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background-color: rgba(23, 23, 23, 0.16);
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 60%);
+  background-color: rgba(23, 23, 23, 0.12);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 50%);
   color: #FFFFFF;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), inset 0 0 0 0.5px rgba(255, 255, 255, 0.25), 0 6px 16px -6px rgba(23, 23, 23, 0.35);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.45), inset 0 0 8px rgba(255, 255, 255, 0.15), 0 6px 16px -6px rgba(23, 23, 23, 0.35);
   opacity: 0;
   scale: 0.8;
   transition: opacity 0.3s var(--ease), scale 0.5s var(--spring), background-color 0.25s var(--ease), color 0.25s var(--ease);
 }
-.heart svg { width: 44%; height: 44%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 1.5px rgba(23, 23, 23, 0.3)); transition: scale 0.5s var(--spring-bouncy), fill 0.2s; }
+.heart svg { width: 44%; height: 44%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(23, 23, 23, 0.45)); transition: scale 0.5s var(--spring-bouncy), fill 0.2s; }
 .heart:hover { background-color: rgba(255, 255, 255, 0.72); color: var(--ink); }
 .heart:hover svg { scale: 1.12; filter: none; }
 .heart.is-saved svg { fill: var(--accent); }
 @media (hover: hover) {
-  .pin:hover > .heart { opacity: 1; scale: 1; backdrop-filter: blur(12px) saturate(1.6); -webkit-backdrop-filter: blur(12px) saturate(1.6); }
+  .pin:hover > .heart { opacity: 1; scale: 1; backdrop-filter: blur(3px) saturate(1.5) brightness(1.05); -webkit-backdrop-filter: blur(3px) saturate(1.5) brightness(1.05); }
+  .liquid .pin:hover > .heart { backdrop-filter: url(#glass-heart) saturate(1.5) brightness(1.05); }
+  .liquid .tile:hover > .heart { backdrop-filter: url(#glass-heart-tile) saturate(1.5) brightness(1.05); }
 }
 .tile .heart { right: 10px; bottom: 10px; width: 36px; height: 36px; }
 .tv .heart, .hand .heart, .panning .heart, .dragging > .heart { display: none; }
@@ -294,6 +295,9 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   gap: 8px;
   padding: 6px 12px 7px 14px;
   border-radius: 999px;
+  --glass: rgba(255, 255, 255, 0.5);
+  --frost: 8;
+  --bevel: 12;
   color: var(--ink);
   font-size: 22px;
   line-height: 1;
@@ -312,24 +316,26 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 
 /* ------------------------------------------------------------------ glass
 
-   The nav, its menus, the zoom and the section label are panes of frosted
-   glass. The wall shows through blurred and a touch brighter, with a fine
-   grain, a rim catching the light from the top left, a soft shadow beneath,
-   and a little light that follows the mouse across it (main.js). */
+   The nav, its menus, the zoom and the section label are clear glass with a
+   bevelled edge. The wall shows through almost untouched, bent and split into
+   a faint rainbow at the rim where the browser can draw it (glass.js, which
+   reads --bevel and --frost, the blur in the flat middle, in px). A thin
+   iridescent edge catches the light, and a soft light follows the mouse. */
 
 .glass {
-  background: var(--grain), linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.18));
   background-color: var(--glass);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 45%);
   border: 0;
   box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.75),
-    inset 0 0 16px rgba(255, 255, 255, 0.28),
-    0 0 0 0.5px rgba(23, 23, 23, 0.12),
-    0 2px 6px rgba(23, 23, 23, 0.06),
-    0 18px 44px -12px rgba(23, 23, 23, 0.3);
-  backdrop-filter: blur(22px) saturate(1.9) brightness(1.05);
-  -webkit-backdrop-filter: blur(22px) saturate(1.9) brightness(1.05);
+    inset 0 1px 1px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 0 12px rgba(255, 255, 255, 0.16),
+    0 0 0 0.5px rgba(23, 23, 23, 0.1),
+    0 12px 32px -14px rgba(23, 23, 23, 0.45);
+  backdrop-filter: blur(4px) saturate(1.5) brightness(1.04);
+  -webkit-backdrop-filter: blur(4px) saturate(1.5) brightness(1.04);
 }
+.liquid .glass { backdrop-filter: var(--refract, blur(4px)) saturate(1.5) brightness(1.04); }
 .glass::before,
 .glass::after {
   content: "";
@@ -339,17 +345,17 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   border-radius: inherit;
   pointer-events: none;
 }
-/* the rim */
+/* the rim, with a hint of rainbow in it */
 .glass::before {
   padding: 1px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.2) 30%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.12) 75%, rgba(255, 255, 255, 0.6));
+  background: conic-gradient(from 200deg, rgba(255, 255, 255, 0.95), rgba(255, 196, 228, 0.6) 10%, rgba(170, 220, 255, 0.55) 20%, rgba(255, 255, 255, 0.12) 32%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 236, 180, 0.4) 62%, rgba(196, 180, 255, 0.5) 72%, rgba(255, 255, 255, 0.55) 86%, rgba(255, 255, 255, 0.95));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 /* the light under the mouse */
 .glass::after {
-  background: radial-gradient(160px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 70%);
+  background: radial-gradient(160px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 70%);
   opacity: 0;
   transition: opacity 0.5s var(--ease);
 }
@@ -357,6 +363,8 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 
 .nav {
   --rise: -10px;
+  --bevel: 22;
+  --frost: 1.5;
   position: fixed;
   top: 16px;
   right: 16px;
@@ -449,7 +457,9 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .nav__more[aria-expanded="true"] svg { rotate: 180deg; }
 
 .pop {
-  --glass: rgba(246, 246, 246, 0.72); /* frostier than the nav, for reading */
+  --glass: rgba(250, 250, 250, 0.5); /* frosted in the middle, for reading */
+  --frost: 14;
+  --bevel: 12;
   position: fixed;
   top: 88px;
   right: 16px;
@@ -460,8 +470,8 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   width: 320px;
   padding: 12px;
   border-radius: 24px;
-  backdrop-filter: blur(32px) saturate(1.8) brightness(1.04);
-  -webkit-backdrop-filter: blur(32px) saturate(1.8) brightness(1.04);
+  backdrop-filter: blur(24px) saturate(1.6) brightness(1.04);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6) brightness(1.04);
 }
 /* A menu that's closing is hidden straight away, but stays in sight while it
    tucks back into its button (main.js) */
@@ -619,6 +629,9 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   padding: 5px;
   border-radius: 999px;
   --rise: 10px;
+  --glass: rgba(255, 255, 255, 0.55);
+  --frost: 8;
+  --bevel: 14;
   animation: pane-in 0.8s var(--spring) backwards;
 }
 .zoom button {

@@ -10,6 +10,7 @@ import { createWall } from './wall.js';
 import { createGrid } from './grid.js';
 import { kindOf, prepImage, prepVideo, uploadBlob } from './upload.js';
 import { isLocalPin } from './local.js';
+import './glass.js';
 
 // In the prototype, only what you've added in this browser can be changed or taken down.
 const yours = (p) => !PREVIEW || isLocalPin(p);
@@ -261,16 +262,6 @@ function popOut(pop) {
   pop.classList.add('is-leaving');
   const out = pop.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '0.9' }], { duration: 170, easing: 'cubic-bezier(0.4, 0, 1, 1)' });
   out.onfinish = () => pop.classList.remove('is-leaving');
-}
-
-// Light catches the glass wherever the mouse is.
-for (const pane of $$('.glass')) {
-  pane.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse') return;
-    const r = pane.getBoundingClientRect();
-    pane.style.setProperty('--mx', `${e.clientX - r.left}px`);
-    pane.style.setProperty('--my', `${e.clientY - r.top}px`);
-  });
 }
 
 $('#add-btn').addEventListener('click', () => { closePops(); openMedia(); });
