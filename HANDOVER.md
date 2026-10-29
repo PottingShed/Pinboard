@@ -1,43 +1,37 @@
 # Pinboard: handover
 
-For Jamie, from Luke (27 Oct 2026). `README.md` has the full detail on what Pinboard does and how it's built; this note is where things stand and what's left to put it live.
+For Jamie, from Luke (27 Oct 2026), updated by Jamie (29 Oct 2026). `README.md` has the full detail on what Pinboard does and how it's built; this note is where things stand and what's left.
 
 ## Where it is
 
-- Built and tested end to end on Cloudflare's local emulation (`npm run dev`), with all the website work imported (530 pieces).
-- **Adding work from anyone is already built.** Uploads, comments, public/private, inspiration and live updates all work in the Worker; they just need deploying to Cloudflare. The GitHub Pages copy (`npm run preview`, served from `docs/`) is a prototype: there's no server, so what people add there is saved in their own browser only. Once it's live on Cloudflare, `docs/` and `public/js/local.js`'s role go away (the live version never uses it).
-- **Not live yet.**
-- Already done on Cloudflare, in Luke's account (`Luke@pottingshed.com's Account`, ID `121dc0e8a89876f04d58573880de5ae3`):
-  - Created the D1 database `pinboard` (Western Europe). Its ID is already in `wrangler.jsonc`. It has no tables yet; deploying adds them.
-- Stuck on: **R2 isn't enabled on that account**, so the storage bucket can't be created.
+- **Live at https://pinboard.pottingshed.com** since 29 Oct 2026, with an empty wall.
+- It's in the **Potting Shed** Cloudflare account (ID `d46ba8453fcdc412ec5078d42deb1af1`), the one that holds pottingshed.com's DNS. `wrangler.jsonc` names that account, so Wrangler always deploys there.
+  - D1 database `pinboard` (Western Europe), tables created (migrations 0001–0005).
+  - R2 bucket `pinboard-files`, empty.
+  - The custom domain made its own DNS record and certificate. The `workers.dev` address is switched off.
+- **No passcode** for now: anyone with the link can add and take down work.
+- The GitHub Pages copy (`npm run preview`, served from `docs/`) is still the prototype: there's no server, so what people add there is saved in their own browser only. The live version never uses `docs/` or `public/js/local.js`.
 
-## To put it live
+## To do
 
-1. **Pick the Cloudflare account.** Use the one that holds pottingshed.com's DNS (nameservers `algin` / `ingrid.ns.cloudflare.com`), so the custom domain attaches by itself. If that isn't Luke's account, run `npx wrangler d1 create pinboard` in the right one and put its `database_id` into `wrangler.jsonc`. The empty database in Luke's account can then be deleted.
-2. **Enable R2** in the dashboard (R2 Object Storage, then Enable). It's free up to 10GB, but Cloudflare may want a card on file.
-3. Install and set up:
-   ```bash
-   npm install
-   npx wrangler login
-   npx wrangler r2 bucket create pinboard-files
-   npm run deploy        # creates the tables (migrations 0001–0005), then deploys
-   ```
-4. **Attach the domain.** Add this to `wrangler.jsonc`, then `npm run deploy` again:
-   ```jsonc
-   "routes": [{ "pattern": "pinboard.pottingshed.com", "custom_domain": true }]
-   ```
-5. **Passcode (optional).** Luke's preference is no passcode, just unlisted (it's already marked noindex). Without one, anyone with the link can add and take down work. To add one: `npx wrangler secret put PINBOARD_PASSCODE`.
-6. **Import the website work.** This needs a Mac (it uses `sips` and QuickLook) and the website export folder, which is on Luke's machine at `~/Documents/Claude Code Projects/Potting Shed Website Redesign Test`:
+1. **Check it in a browser.**
+   - Open https://pinboard.pottingshed.com and add a piece (make one Public).
+   - Leave a comment.
+   - Sort by a colour.
+   - Open `https://pinboard.pottingshed.com/?tv=1` on a second screen. Public work you add should cut in there; private work shouldn't.
+2. **Decide on a passcode.** Luke's preference is none, just unlisted (it's already marked noindex). To add one: `npx wrangler secret put PINBOARD_PASSCODE`.
+3. **Import the website work.** This needs a Mac (it uses `sips` and QuickLook) and the website export folder, which is on Luke's machine at `~/Documents/Claude Code Projects/Potting Shed Website Redesign Test`:
    ```bash
    node scripts/website-list.mjs "/path/to/Potting Shed Website Redesign Test" > website.json
    PINBOARD_URL=https://pinboard.pottingshed.com node scripts/seed.mjs website.json
    ```
-   Uploading about 800MB takes 10 minutes or so.
-7. **Check it:**
-   - Open the site and add a piece.
-   - Leave a comment.
-   - Sort by a colour.
-   - Open `https://pinboard.pottingshed.com/?tv=1` on a second screen. Public work you add should cut in there; private work shouldn't.
+   Uploading about 800MB takes 10 minutes or so. Add `PINBOARD_PASSCODE=…` if one's been set.
+4. **Tidy up.**
+   - Make the repo private once the GitHub Pages preview isn't needed (the fonts are licensed), and turn off Pages.
+   - Delete `docs/` once the preview is gone.
+   - Delete the empty `pinboard` D1 database in Luke's own account (`Luke@pottingshed.com's Account`, ID `121dc0e8a89876f04d58573880de5ae3`). It was never used.
+
+To deploy changes: `npm run deploy` from this folder (after `npx wrangler login`). It applies any new migrations, then publishes.
 
 ## Decisions already made with Luke
 
@@ -76,3 +70,4 @@ So nothing gets undone by accident:
   - `.wrangler/` is the local emulator's database and files, about 900MB.
   - `data/` is left over from an earlier Node version, about 770MB.
 - **If you run Wrangler from Claude Code:** its sandbox can't read the Wrangler login, so those commands need the sandbox turned off.
+- **If Wrangler says "Authentication error [code: 10000]"** for the Potting Shed account, log out and back in (`npx wrangler logout`, then `npx wrangler login`). If that doesn't fix it, use a Cloudflare API token scoped to the Potting Shed account in `CLOUDFLARE_API_TOKEN` (never in a file in this repo).

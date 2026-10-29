@@ -2,30 +2,62 @@
 // the pins, and a Durable Object that pushes live updates to every screen.
 // Everything here fits in Cloudflare's free plan.
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pinboard",
-  "main": "worker/index.js",
-  "compatibility_date": "2026-09-01",
-
-  // The site itself. Anything that isn't a file in public/ goes to the Worker.
-  "assets": { "directory": "./public" },
-
-  "d1_databases": [
-    { "binding": "DB", "database_name": "pinboard", "database_id": "bfc2edde-1f6c-492a-aeb3-f9eb9e2572ca", "migrations_dir": "migrations" }
-  ],
-  "r2_buckets": [
-    { "binding": "BUCKET", "bucket_name": "pinboard-files" }
-  ],
-  "durable_objects": {
-    "bindings": [{ "name": "HUB", "class_name": "Hub" }]
-  },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
-
-  "vars": {
-    "PINBOARD_STUDIOS": "Guernsey,Jersey",
-    "MAX_UPLOAD_MB": "250"
-  },
-  // Optional passcode: `npx wrangler secret put PINBOARD_PASSCODE`
-
-  "observability": { "enabled": true }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "pinboard",
+	// The Potting Shed account, which holds pottingshed.com's DNS.
+	"account_id": "d46ba8453fcdc412ec5078d42deb1af1",
+	"main": "worker/index.js",
+	"compatibility_date": "2026-09-01",
+	// Cloudflare makes the DNS record and certificate for this itself.
+	"routes": [
+		{
+			"pattern": "pinboard.pottingshed.com",
+			"custom_domain": true
+		}
+	],
+	// Only the custom domain: no workers.dev address or preview URLs.
+	"workers_dev": false,
+	"preview_urls": false,
+	// The site itself. Anything that isn't a file in public/ goes to the Worker.
+	"assets": {
+		"directory": "./public"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "pinboard",
+			"database_id": "1ce5ba1f-7007-48fc-9642-2c1d96bc38a8",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "pinboard-files"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "HUB",
+				"class_name": "Hub"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"Hub"
+			]
+		}
+	],
+	"vars": {
+		"PINBOARD_STUDIOS": "Guernsey,Jersey",
+		"MAX_UPLOAD_MB": "250"
+	},
+	// Optional passcode: `npx wrangler secret put PINBOARD_PASSCODE`
+	"observability": {
+		"enabled": true
+	}
 }
