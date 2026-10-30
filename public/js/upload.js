@@ -123,7 +123,7 @@ function send(method, url, body, onProgress, type = body.type) {
     xhr.onload = () => {
       let data = {};
       try { data = JSON.parse(xhr.responseText); } catch {}
-      if (xhr.status === 401) location.href = '/login';
+      if (xhr.status === 401) location.href = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
       if (xhr.status >= 200 && xhr.status < 300) resolve(data);
       else reject(new Error(data.error || 'Upload failed. Try again.'));
     };

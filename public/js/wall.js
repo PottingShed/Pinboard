@@ -16,9 +16,20 @@ const MAX_S = 3;
 const AREA = { s: 105_000, m: 180_000, l: 320_000 };
 const PALETTE = { strip: { w: 210, h: 430 }, row: { w: 400, h: 270 } };
 
+// How big a piece goes up is Pinboard's call, made afresh every time the wall
+// is arranged, so the same piece can come back bigger or smaller: mostly
+// medium, some small, some large. Never bigger than the image has the pixels
+// for (sharp at 100% on a retina screen), so a small image stays small.
+function areaFor(p) {
+  const n = Math.random();
+  const area = (n < 0.3 ? AREA.s : n < 0.75 ? AREA.m : AREA.l) * rand(0.8, 1.2);
+  if (!p.nat_w || !p.nat_h) return area;
+  return Math.max(Math.min(area, (p.nat_w / 2) * (p.nat_h / 2)), AREA.s * 0.7);
+}
+
 function sizeFor(p) {
   if (p.kind === 'palette') return { ...PALETTE[p.style] };
-  const area = (AREA[p.size] || AREA.m) * rand(0.8, 1.2);
+  const area = areaFor(p);
   const ar = p.nat_w && p.nat_h ? p.nat_w / p.nat_h : 4 / 3;
   let w = Math.sqrt(area * ar);
   let hh = w / ar;
@@ -173,7 +184,7 @@ export function createWall(root, { onTap, onColours, onInteract, onHold, onNoteM
     // A patch the shape of the screen with room for everything, and at least a
     // bit bigger than the screen so the edges run off it.
     const s0 = homeScale(vw);
-    const room = list.reduce((sum, p) => sum + (p.kind === 'palette' ? PALETTE.row.w * PALETTE.row.h : AREA[p.size] || AREA.m), 0) * 0.92;
+    const room = list.reduce((sum, p) => sum + (p.kind === 'palette' ? PALETTE.row.w * PALETTE.row.h : AREA.m), 0) * 0.92;
     const W = Math.max(Math.sqrt(room * (vw / vh)), (vw / s0) * 1.15);
     const H = Math.max(W / (vw / vh), (vh / s0) * 1.15);
     const { placed, reach } = compose(list, W, H);

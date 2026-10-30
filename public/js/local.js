@@ -87,7 +87,7 @@ export async function createPin(body) {
     id, kind: body.kind, origin: 'studio', parent_id: null,
     src: null, thumb: null, nat_w: null, nat_h: null, size: null, rot: 0, fix: null, fix_color: null,
     title: null, description: null, source: null, text: null, color: null, colors: body.colors || null,
-    author: clean(body.author, 40) || null, studio: clean(body.studio, 40) || null, type: 'public', ax: null, ay: null, created_at: Date.now(),
+    author: clean(body.author, 40) || null, studio: null, type: 'public', ax: null, ay: null, created_at: Date.now(),
   };
   let pin;
   if (body.kind === 'comment') {
@@ -97,7 +97,7 @@ export async function createPin(body) {
   } else {
     pin = {
       ...base,
-      src: body.src, thumb: body.thumb || null, nat_w: body.nat_w, nat_h: body.nat_h, size: body.size || 'm',
+      src: body.src, thumb: body.thumb || null, nat_w: body.nat_w, nat_h: body.nat_h, size: null,
       title: clean(body.title, 80) || null,
       description: cleanText(body.description, 400) || null,
       source: body.type === 'inspo' ? clean(body.source, 300) || null : null,

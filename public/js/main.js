@@ -131,7 +131,7 @@ function render() {
 
 // What an empty wall says when you're looking at one type, and what its button adds.
 const EMPTY = {
-  public: ['No ', h('em', {}, 'public'), ' work yet.'],
+  public: ['No ', h('em', {}, 'approved'), ' work yet.'],
   wip: ['No work in ', h('em', {}, 'progress'), ' yet.'],
   inspo: ['No ', h('em', {}, 'inspo'), ' pinned yet.'],
   social: ['No ', h('em', {}, 'social'), ' snaps yet.'],
@@ -506,8 +506,8 @@ function saveColours(p, img) {
 
 // ------------------------------------------------------------------ who's pinning
 
-function rememberMe(name, studio = state.me?.studio || '') {
-  state.me = { name, studio };
+function rememberMe(name) {
+  state.me = { name };
   try { localStorage.setItem('pb.me', JSON.stringify(state.me)); } catch {}
 }
 
@@ -521,17 +521,12 @@ function openMedia(files = []) {
   if (!media.busy) setMediaStatus('');
   addFiles(files);
   if (!mediaSheet.open) {
-    $('#media-form').elements.type.value = startingType();
-    showType();
+    setType(startingType());
     const board = state.boards.get(state.board);
     $('#media-board-note').hidden = !board;
     $('#media-board-note').textContent = board ? `It goes on the wall, and on ${board.name} too.` : '';
   }
   $('#media-name').value = state.me?.name || '';
-  $('#media-studio').replaceChildren(h('legend', {}, 'Studio'), ...state.config.studios.map((s) => h('label', {}, [
-    h('input', { type: 'radio', name: 'studio', value: s, checked: (state.me?.studio || state.config.studios[0]) === s || null }),
-    h('span', {}, s),
-  ])));
   if (!mediaSheet.open) mediaSheet.showModal();
 }
 
@@ -563,8 +558,8 @@ function renderPreviews() {
   $('#media-submit').textContent = media.items.length > 1 ? `Pin ${media.items.length}` : 'Pin it';
 }
 
-// What's added is work in progress unless someone says otherwise, so nothing
-// reaches the TVs by accident. Looking at one type, you add that type. And
+// What's added is our work, in progress, unless someone says otherwise, so
+// nothing reaches the TVs by accident. Looking at one type, you add that type. And
 // once someone's added Social or Inspo it stays picked for the rest of the
 // day, so a night out's photos don't each need it choosing again.
 const STICKY_TYPES = ['social', 'inspo'];
@@ -583,10 +578,23 @@ function keepType(type) {
 
 // The sheet fits what's being added: inspo says where it's from, for one.
 const HEADINGS = { inspo: 'inspo', social: 'photos' };
-const TITLES = { inspo: 'e.g. Pentagram, Rijksmuseum identity', social: 'e.g. Summer party, Jersey' };
+const TITLES = { inspo: 'e.g. Pentagram, Rijksmuseum identity', social: 'e.g. Summer party' };
 const DESCRIPTIONS = { inspo: 'Why it’s worth a look', social: 'Who, where, what’s going on' };
+// Two questions in the sheet: what is it (our work, inspo or social) and, for
+// our work, is it approved yet. Together they make its type.
+function formType() {
+  const f = $('#media-form').elements;
+  return f.what.value === 'work' ? f.stage.value : f.what.value;
+}
+function setType(type) {
+  const f = $('#media-form').elements;
+  f.what.value = ourWork({ type }) ? 'work' : type;
+  if (ourWork({ type })) f.stage.value = type;
+  showType();
+}
 function showType() {
-  const type = $('#media-form').elements.type.value;
+  const type = formType();
+  $('#media-stage').hidden = !ourWork({ type });
   $('#type-note').textContent = TYPES[type].note;
   $('#media-source-field').hidden = type !== 'inspo';
   $('#media-heading').replaceChildren('Add ', h('em', {}, HEADINGS[type] || 'work'));
@@ -594,7 +602,7 @@ function showType() {
   $('#media-description').placeholder = DESCRIPTIONS[type] || 'What it is, what it’s for, what feedback would help';
 }
 $('#media-form').addEventListener('change', (e) => {
-  if (e.target.name === 'type') showType();
+  if (e.target.name === 'what' || e.target.name === 'stage') showType();
 });
 
 function setMediaStatus(msg, error = false) {
@@ -636,13 +644,12 @@ $('#media-form').addEventListener('submit', async (e) => {
     setMediaStatus('Add your name so people know who pinned it.', true);
     return $('#media-name').focus();
   }
-  rememberMe(name, $('#media-form').elements.studio?.value || '');
+  rememberMe(name);
   media.busy = true;
   renderPreviews();
   const title = $('#media-title').value;
   const description = $('#media-description').value;
-  const size = $('#media-form').elements.size.value;
-  const type = $('#media-form').elements.type.value;
+  const type = formType();
   const source = type === 'inspo' ? $('#media-source').value : '';
   keepType(type);
   const total = media.items.length;
@@ -655,7 +662,7 @@ $('#media-form').addEventListener('submit', async (e) => {
       const prepped = item.kind === 'image' ? await prepImage(item.file) : await prepVideo(item.file);
       const src = await uploadBlob(prepped.full, (f) => setMediaStatus(`Uploading${n} · ${Math.round(f * 100)}%`));
       const thumb = prepped.thumb ? await uploadBlob(prepped.thumb) : null;
-      last = await create({ kind: item.kind, src, thumb, nat_w: prepped.w, nat_h: prepped.h, size, title, description, colors: prepped.colors, type, source });
+      last = await create({ kind: item.kind, src, thumb, nat_w: prepped.w, nat_h: prepped.h, title, description, colors: prepped.colors, type, source });
       if (state.board) await saveTo(state.board, last.id); // added while looking at a board: it goes on the board too
       URL.revokeObjectURL(item.url);
       media.items.shift();
@@ -663,7 +670,7 @@ $('#media-form').addEventListener('submit', async (e) => {
     }
     media.busy = false;
     mediaSheet.close();
-    // Make sure it's in sight: a Social photo added while looking at Public, say, opens All.
+    // Make sure it's in sight: a Social photo added while looking at Approved, say, opens All.
     if (last && !matches(last)) {
       remember('show', 'all');
       remember('colour', null);
@@ -684,7 +691,7 @@ let posting = 0;
 async function create(body) {
   posting++;
   try {
-    const pin = await api('/api/pins', { method: 'POST', body: { ...body, author: state.me.name, studio: state.me.studio } });
+    const pin = await api('/api/pins', { method: 'POST', body: { ...body, author: state.me.name } });
     landed(pin);
     return pin;
   } finally {
@@ -718,7 +725,7 @@ function openFocus(p, writing = false) {
     box.replaceChildren(v);
   }
   const d = describe(p);
-  $('#focus-meta').textContent = fromWebsite(p) ? d.by : [p.author, p.studio, fmtDate(p.created_at, true)].filter(Boolean).join(' · ');
+  $('#focus-meta').textContent = fromWebsite(p) ? d.by : [p.author, fmtDate(p.created_at, true)].filter(Boolean).join(' · ');
   renderSource(p);
   $('#focus-title').textContent = p.title || 'Untitled';
   // The piece's colours, sized by how much of it they cover. Tap one to sort by it.
@@ -793,8 +800,8 @@ $('#describe-form').addEventListener('submit', async (e) => {
   }
 });
 
-// What it is, changeable any time: work in progress goes public, say.
-// Only Public and Social show on the TVs.
+// What it is, changeable any time: work in progress gets approved, say.
+// Only approved work and Social show on the TVs.
 function renderType(p) {
   $('#focus-type').hidden = !yours(p);
   for (const b of $$('#focus-type button')) b.setAttribute('aria-pressed', String(p.type === b.dataset.type));
@@ -861,7 +868,7 @@ $('#focus-media').addEventListener('click', (e) => { if (e.target === e.currentT
 function renderComments() {
   $('#focus-notes').replaceChildren(...childrenOf(focusId).map((c) => h('li', { style: `--c:${c.color}` }, [
     h('span', {}, c.text),
-    h('small', {}, [c.author, c.studio, fmtDate(c.created_at)].filter(Boolean).join(' · ')),
+    h('small', {}, [c.author, fmtDate(c.created_at)].filter(Boolean).join(' · ')),
     yours(c) ? h('button', { type: 'button', class: 'focus__unnote', 'aria-label': 'Remove this note', title: 'Remove', onclick: () => removeComment(c.id) }, '×') : null,
   ])));
 }
@@ -1243,7 +1250,7 @@ async function resync() {
 // On the studio screens the board looks after itself, with the logo big in the
 // middle and changing colour every minute. The wall holds still and the grid
 // barely creeps; the change comes from the work itself, one piece at a time
-// (see tick). New public work and social photos go up straight away.
+// (see tick). New approved work and social photos go up straight away.
 // Work in progress and inspo never show here.
 
 const tv = { run: 0, pausedUntil: 0, timers: [] };

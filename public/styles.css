@@ -660,6 +660,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .pop__seg button {
   flex: 1;
   padding: 9px 8px;
+  white-space: nowrap;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -1116,7 +1117,6 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .btn--line-light:hover { border-color: var(--paper); }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-.who-row { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: end; }
 .field__note { margin: -14px 0 0; font-size: 14px; color: var(--grey); }
 .field__note:empty { display: none; }
 
@@ -1213,10 +1213,11 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .focus__palette button:last-child { border-radius: 0 999px 999px 0; }
 .focus__palette button:hover,
 .focus__palette button:focus-visible { transform: scaleY(1.7); outline: none; }
-.focus__type { display: flex; align-items: center; gap: 12px; }
+.focus__type { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .focus__seg { display: inline-flex; padding: 3px; border: 1px solid rgba(242, 242, 242, 0.2); border-radius: 999px; }
 .focus__seg button {
   padding: 6px 14px;
+  white-space: nowrap;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -1278,24 +1279,6 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .focus__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
 .focus__close { position: absolute; top: 24px; right: 24px; }
 
-/* ------------------------------------------------------------------ login */
-
-body.login { overflow: auto; display: grid; place-items: center; min-height: 100%; padding: 16px; }
-.login__card {
-  display: flex;
-  flex-direction: column;
-  gap: 26px;
-  width: min(440px, 100%);
-  padding: 32px;
-  background: #FDE619;
-  transform: rotate(-1.5deg);
-}
-.login__card h1 { margin: -14px 0 0; font-size: 64px; font-weight: 400; letter-spacing: -0.03em; line-height: 1; }
-.login__card .eyebrow { color: var(--ink); opacity: 0.6; }
-.login__card .field > span { color: var(--ink); opacity: 0.6; }
-.login__card .btn--accent { align-self: flex-start; background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.login__error { margin: -10px 0 0; font-size: 16px; }
-
 /* ------------------------------------------------------------------ small screens */
 
 @media (max-width: 720px) {
@@ -1317,7 +1300,6 @@ body.login { overflow: auto; display: grid; place-items: center; min-height: 100
     border-radius: 14px 14px 0 0;
   }
   .sheet__inner { padding: 22px 16px max(24px, env(safe-area-inset-bottom)); gap: 22px; }
-  .who-row { grid-template-columns: 1fr; }
   .focus[open] { grid-template-columns: 1fr; grid-template-rows: auto auto; overflow-y: auto; }
   .focus__media { padding: 64px 16px 4px; }
   .focus__media img,

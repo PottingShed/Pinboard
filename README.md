@@ -1,20 +1,21 @@
 # Pinboard
 
-Potting Shed's shared studio wall at **pinboard.pottingshed.com**. Anyone in Guernsey or Jersey can pin work in progress, sketches, inspiration and photos from studio life, stick notes on each other's work, and see it on every screen in both studios the moment it goes up. The website's case studies and project archive sit on the wall too, so old work turns up alongside new.
+Potting Shed's shared studio wall at **pinboard.pottingshed.com**. Anyone at Potting Shed can pin work in progress, sketches, inspiration and photos from studio life, stick notes on each other's work, and see it on every screen in the studio the moment it goes up. The website's case studies and project archive sit on the wall too, so old work turns up alongside new.
 
 ## What it does
 
+- **A password first.** Before anything shows there's one field for the studio password, under the leaf (in a different brand colour each time). Each browser asks once and remembers it for about a year, then goes on to where it was headed, so a TV opened on `?tv=1` lands in TV mode. A wrong password gets a shake and "That's not it."
 - **Wall view.** A layered collage of everything, filling the screen and running far past it, newest work in the middle, arranged fresh on every visit. Each piece has one strip of tape, and a handful of palette cards (one client's colours each) sit among the work. Only what's near the screen loads; images further than a couple of screens away are let go again, so it stays quick with thousands of pieces. Drag around to explore, pinch or ⌘-scroll to zoom. With a mouse, dragging a piece moves it (hold space to move round without picking anything up). On a phone or tablet, a finger always moves round the wall wherever it lands, and a flick glides on and slows to a stop; touching again stops it without opening anything. You can't go past the edge of the work, so the screen is always full.
 - **Grid view.** A neat masonry layout of everything, whose columns drift slowly upward. Hover to slow it, scroll or drag to move it. Tiles load as they come near the screen and are let go once they're well past it.
-- **Add.** Images and video: drop, paste or browse (on a phone, **Camera** for a photo or video there and then, or **Camera roll** for as many as you like), with an optional title and description (what it is, what it's for, what feedback would help). Each piece is one of four types:
-  - **Work in progress**: studio only, never on the TVs. The default, so nothing goes public by accident.
-  - **Public**: our work, fine for anyone to see, and on the TVs.
+- **Add.** Images and video: drop, paste or browse (on a phone, **Camera** for a photo or video there and then, or **Camera roll** for as many as you like), with an optional title and description (what it is, what it's for, what feedback would help). Add asks **What is it**: Our work, Inspo or Social, and for our work, its **Work status**: In progress or Approved. So each piece is one of four types:
+  - **In progress** (WIP): our work, not signed off yet. Studio only, never on the TVs. The default, so nothing goes public by accident.
+  - **Approved**: our work, signed off and fine for anyone to see, and on the TVs.
   - **Inspo**: work we love that we didn't make, with an optional source (who made it, or a link). Not on the TVs.
   - **Social**: life at Potting Shed, socials and snapshots. On the TVs.
 
-  Looking at one type, what you add is that type. Once you've added Social or Inspo it stays picked for the rest of the day, so a night out's photos don't each need it choosing again. You add your name and studio once and it's remembered. The type and description can be changed later in the piece's expanded view.
-- **Telling them apart.** Public work has plain tape. The others have coloured, labelled tape: yellow **WIP**, blue **Inspo**, pink **Social** (in the grid, a strip in the tile's corner). So work in progress stands out before anyone screenshots it for a client.
-- **Show.** In the ⌄ menu: **All** (everything: the default), **Public**, **WIP**, **Inspo** or **Social**. Looking at one type, a small label sits by the logo; click it to go back to All.
+  Looking at one type, what you add is that type. Once you've added Social or Inspo it stays picked for the rest of the day, so a night out's photos don't each need it choosing again. You add your name once and it's remembered. There's no size to pick: Pinboard sizes each piece itself every time it arranges the wall (mostly medium, some small, some large), so the same piece can come back bigger or smaller, but never bigger than the image has the pixels for, so a small image stays small. The type and description can be changed later in the piece's expanded view.
+- **Telling them apart.** Approved work has plain tape. The others have coloured, labelled tape: yellow **WIP**, blue **Inspo**, pink **Social** (in the grid, a strip in the tile's corner). So work in progress stands out before anyone screenshots it for a client.
+- **Show.** In the ⌄ menu: **All** (everything: the default), **WIP**, **Approved**, **Inspo** or **Social**. Looking at one type, a small label sits by the logo; click it to go back to All.
 - **Boards.** Collections anyone can make, like a shared Pinterest, with no logins. Point at a piece and tap the ♡ in its corner (or **Save** in the expanded view) to put it on one or more boards, or make a new board there and then. The ♡ in the nav lists the boards: open one and the wall (or grid) shows just that board, newest saves in the middle, with its name by the logo. From the same menu the open board can be renamed, deleted (two taps) or its link copied (`?board=…`, which also works with `?tv=1`, so a TV can show a board). Anything added while a board is open goes on it too. Pieces that are taken down drop off their boards.
 - **Sticky notes.** Notes (100 characters, with your name) stick to their piece on the wall, hanging off its edge, so you can read them without opening anything, and they go wherever the piece goes. Each is a brand colour with black text, never the same as the note under it. Pinboard's own notes are signed with a "pinboard" wordmark made from the Potting Shed logo's letters (`public/brand/pinboard.svg`, built by `scripts/wordmark.mjs`; used only there). A piece with several shows the newest on top, the ones before peeking out underneath, and a count; tap it to read them all in the piece's expanded view.
   - **Adding one:** point at a piece and tap the note button beside the ♡, or press `N`. On a phone, hold a finger on the piece. The note appears where you pointed: type, then Enter to stick it (Esc, or clicking away with nothing written, takes it off). In the grid, the note button opens the piece with its note box ready. Notes can also be added in the expanded view.
@@ -23,12 +24,12 @@ Potting Shed's shared studio wall at **pinboard.pottingshed.com**. Anyone in Gue
 - **Colour.** Pick any colour on the wheel and the wall sorts itself by it: closest in the middle (or the top of the grid). Tap a colour on a palette card, or in a piece's colour bar, to do the same.
 - **Order and video.** Newest (the default), Mix or Random. Video can be switched off in the ⌄ menu for anyone who finds moving work distracting; it's remembered per person.
 - **Live.** New work and notes appear on every open screen straight away, without fuss. Every five minutes the wall is also redrawn with the latest work (on people's own screens, only once they've left it alone for a couple of minutes).
-- **TV mode** (the screen button in the nav, or `?tv=1`). Public and Social only. The Potting Shed logo glides from its corner to the middle of the screen, centred on its "o" rather than its box so it looks centred (and back on the way out) and changes brand colour every minute. The wall holds still: every 10 seconds one of the older pieces on screen comes down, and 5 seconds later something else goes up in the gap, so it evolves one piece at a time. New public work and social photos go up the same way. Notes show only as their dot, never their words. The grid version creeps very slowly.
+- **TV mode** (the screen button in the nav, or `?tv=1`). Approved work and Social only. The Potting Shed logo glides from its corner to the middle of the screen, centred on its "o" rather than its box so it looks centred (and back on the way out) and changes brand colour every minute. The wall holds still: every 10 seconds one of the older pieces on screen comes down, and 5 seconds later something else goes up in the gap, so it evolves one piece at a time. New approved work and social photos go up the same way. Notes show only as their dot, never their words. The grid version creeps very slowly.
 - **The logo** is a different brand colour on every visit. Hover it and it takes another one while its three leaves hop, left to right. Click it for a fresh arrangement.
 - **The pointer** is a small dot in the logo's colour (a ring while space is held). Pieces have no hover captions: open one to see what it is.
 - **The nav is clear glass**, and so are its menus (frosted in the middle so they read), the zoom and the label by the logo. Their bevelled edges bend the wall behind like a thick slab, with a faint rainbow where the colours split (`public/js/glass.js`; Chrome, Edge and Arc only, elsewhere the glass just isn't bent), plus a thin iridescent rim and a soft light that follows the mouse. Menus grow out of the button that opened them on a spring and tuck back into it; the pill under an Order or Show choice slides to the next. The ♡ on a piece is a small clear lens that whitens when you point at it.
 - **Homepage.** The ⌄ menu has instructions for setting it as your browser homepage.
-- **On a phone's home screen** (Share → Add to Home Screen) it's an app: the white "ps." from the leaf on royal blue, called Pinboard, opening full screen without the browser around it. The icon is the logo's own letters (`node scripts/app-icon.mjs "#245FFF"` remakes it in any colour). A phone keeps the icon it was given when it was added, so it can't change colour by itself afterwards.
+- **On a phone's home screen** (Share → Add to Home Screen) it's an app called Pinboard, opening full screen without the browser around it. Its icon is the white "ps." on a brand colour, and each phone gets its own: one is picked at random the first time a phone opens Pinboard, and kept, so the icons round the studio all differ. The ps. is always white. It's the one from Potting Shed's favicon (`public/brand/leaf.svg`), as big as on the studio's social profile pictures and centred by eye: the p's counter dead on the centre line, the whole thing a touch right to balance the p's tail against the dot (`node scripts/app-icon.mjs` remakes all ten in `public/brand/icons/`). A phone keeps the icon it had when it was added, so an icon can't change colour by itself afterwards.
 
 Keys: `G` grid/wall, `S` shuffle, `F` fit, `+`/`-` zoom, `N` note on the piece under the pointer, `T` TV mode, `Esc` leave. In an open piece, `←`/`→` go to the previous and next.
 
@@ -86,8 +87,7 @@ Then open http://localhost:8787. Wrangler runs local copies of D1, R2 and the Du
 
 | Setting | Where | What it does |
 |---|---|---|
-| `PINBOARD_PASSCODE` | `npx wrangler secret put PINBOARD_PASSCODE` | Optional studio passcode, asked once per browser and remembered for 400 days. Without it, anyone with the link can see and add to the board. |
-| `PINBOARD_STUDIOS` | `vars` in `wrangler.jsonc` | Studios to pick from (`Guernsey,Jersey`) |
+| `PINBOARD_PASSCODE` | `npx wrangler secret put PINBOARD_PASSCODE` | The studio password (Luke has it; it's not written down here because the repo is public). Asked once per browser, before anything else shows, and remembered for 400 days. Changing it signs everyone out. Without it, anyone with the link can see and add to the board. Locally, put `PINBOARD_PASSCODE=…` in `.dev.vars` (git-ignored). |
 | `MAX_UPLOAD_MB` | `vars` in `wrangler.jsonc` | Largest file allowed (`250`) |
 
 It's unlisted: every page and file tells search engines not to index it, and `robots.txt` turns crawlers away. For sign-in with studio Google or Microsoft accounts, put Cloudflare Access in front of it (free for up to 50 people).
@@ -109,7 +109,7 @@ For showing it round before it's live, `npm run preview` builds a prototype into
 
 ## Setting up the studio TVs
 
-Open `https://pinboard.pottingshed.com/?tv=1` in Chrome (enter the passcode once if you've set one), then make it full screen. Add `&view=grid` for the drifting grid instead of the wall, or set a screen up differently, e.g. `&video=off`, `&show=social` or `&colour=ff840a` (sort by a colour). TVs only ever show Public and Social work. The screen stays awake, catches up on its own after Wi-Fi drops, and reloads every 6 hours for a fresh arrangement.
+Open `https://pinboard.pottingshed.com/?tv=1` in Chrome (enter the password once), then make it full screen. Add `&view=grid` for the drifting grid instead of the wall, or set a screen up differently, e.g. `&video=off`, `&show=social` or `&colour=ff840a` (sort by a colour). TVs only ever show approved work and Social. The screen stays awake, catches up on its own after Wi-Fi drops, and reloads every 6 hours for a fresh arrangement.
 
 For a dedicated screen, start Chrome in kiosk mode:
 
@@ -129,7 +129,7 @@ open -a "Google Chrome" --args --kiosk "https://pinboard.pottingshed.com/?tv=1"
 
 ```
 wrangler.jsonc       Cloudflare setup: Worker, R2, D1, Durable Object
-worker/index.js      the API: pins, notes, uploads, files, passcode
+worker/index.js      the API: pins, notes, uploads, files, the password gate
 worker/hub.js        live updates to every open screen
 migrations/          the D1 database tables
 public/              the site: page, styles, fonts, brand files

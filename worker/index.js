@@ -30,7 +30,6 @@ const SINGLE_MAX = 95 * 1024 * 1024;
 const PART_SIZE = 50 * 1024 * 1024;
 const NOINDEX = 'noindex, nofollow, noimageindex';
 
-const studiosOf = (env) => (env.PINBOARD_STUDIOS || 'Guernsey,Jersey').split(',').map((s) => s.trim()).filter(Boolean);
 const maxUpload = (env) => (Number(env.MAX_UPLOAD_MB) || 250) * 1024 * 1024;
 
 class HttpError extends Error {
@@ -135,7 +134,7 @@ async function createPin(body, env) {
     rot: 0, fix: null, fix_color: null, title: null, text: null, color: null, colors: cleanColors(body.colors),
     type: 'public', ax: null, ay: null,
     author: clean(body.author, NAME_MAX) || null,
-    studio: studiosOf(env).includes(body.studio) ? body.studio : null,
+    studio: null, // no longer asked: Pinboard isn't tied to either studio
     created_at: when,
   };
 
@@ -147,7 +146,6 @@ async function createPin(body, env) {
       src: body.src, thumb: (await fileExists(env, body.thumb)) ? body.thumb : null,
       nat_w: Math.max(1, Math.round(Number(body.nat_w) || 4)),
       nat_h: Math.max(1, Math.round(Number(body.nat_h) || 3)),
-      size: ['s', 'm', 'l'].includes(body.size) ? body.size : 'm',
       title: clean(body.title, TITLE_MAX) || null,
       description: cleanText(body.description, DESCRIPTION_MAX) || null,
       source: type === 'inspo' ? clean(body.source, 300) || null : null,
@@ -281,28 +279,81 @@ async function authed(request, env) {
   return sameSecret(cookie(request, 'pb'), await tokenFor(env));
 }
 
-const LOGIN_PAGE = (error = '') => `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Pinboard</title>
-<link rel="icon" href="/brand/leaf.png"><link rel="stylesheet" href="/styles.css"></head>
-<body class="login"><form method="post" action="/login" class="login__card">
-<p class="eyebrow">Potting Shed</p><h1>Pinboard</h1>
-<label class="field"><span>Studio passcode</span><input name="passcode" type="password" autocomplete="current-password" autofocus required></label>
-${error ? `<p class="login__error">${error}</p>` : ''}
-<button class="btn btn--accent" type="submit">Open the wall</button></form></body></html>`;
+// The way in, before anything else: the leaf in one of the brand colours (a
+// different one each time), the name, one field. A wrong password gets a
+// shake and a word. Afterwards it goes back where you were headed, so a TV
+// opened on /?tv=1 lands in TV mode.
+const attr = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-const html = (body, status = 200) => new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': NOINDEX } });
+const GATE_CSS = `
+@font-face { font-family: "PP Neue Montreal"; src: url("/fonts/PPNeueMontreal-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Quarto"; src: url("/fonts/Quarto-MediumItalic.woff2") format("woff2"); font-weight: 500; font-style: italic; font-display: swap; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { display: grid; place-items: center; padding: 16px 16px 9vh; background: #F2F2F2; color: #171717; font: 400 16px/1.4 "PP Neue Montreal", "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+.gate { display: flex; flex-direction: column; align-items: center; width: min(340px, 100%); text-align: center; animation: rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.gate__leaf { width: 76px; height: 76px; background: var(--c); -webkit-mask: url("/brand/leaf.svg") center / contain no-repeat; mask: url("/brand/leaf.svg") center / contain no-repeat; }
+h1 { margin: 26px 0 0; font-size: 44px; font-weight: 400; letter-spacing: -0.035em; line-height: 1; }
+p { margin: 10px 0 0; color: #8B8B8B; font-size: 17px; letter-spacing: -0.01em; }
+em { font-family: "Quarto", Georgia, serif; font-size: 1.1em; font-style: italic; font-weight: 500; color: #171717; }
+form { width: 100%; margin-top: 40px; }
+.gate__field { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 22px; background: #fff; border-radius: 999px; box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06), 0 14px 30px -18px rgba(23, 23, 23, 0.3); transition: box-shadow 0.2s; }
+.gate__field:focus-within { box-shadow: 0 0 0 1.5px #171717, 0 14px 30px -18px rgba(23, 23, 23, 0.3); }
+input { flex: 1; min-width: 0; height: 44px; padding: 0; border: 0; outline: 0; background: none; color: inherit; font: inherit; font-size: 17px; letter-spacing: 0.01em; }
+input::placeholder { color: #A2A2A2; }
+button { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: #171717; color: #F2F2F2; cursor: pointer; transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1); }
+button:hover { transform: translateX(2px); }
+button:active { transform: scale(0.92); }
+button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.gate__error { min-height: 1.4em; margin-top: 14px; color: #171717; font-size: 15px; }
+.gate.is-wrong { animation: none; }
+.is-wrong .gate__field { animation: shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+@media (prefers-reduced-motion: reduce) { .gate, .is-wrong .gate__field { animation: none; } }
+`;
 
-async function login(request, env) {
-  if (!env.PINBOARD_PASSCODE) return Response.redirect(new URL('/', request.url), 302);
-  if (request.method !== 'POST') return html(LOGIN_PAGE());
+const GATE = ({ error = '', next = '/' } = {}) => `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="#F2F2F2">
+<title>Pinboard</title><link rel="icon" href="/brand/leaf.png">
+<style>${GATE_CSS}</style></head>
+<body style="--c:${COMMENT_COLOURS[Math.floor(Math.random() * COMMENT_COLOURS.length)]}">
+<main class="gate${error ? ' is-wrong' : ''}">
+<div class="gate__leaf" role="img" aria-label="Potting Shed"></div>
+<h1>Pinboard</h1>
+<p>Potting Shed’s studio <em>wall</em></p>
+<form method="post" action="/login">
+<input type="hidden" name="next" value="${attr(next)}">
+<label class="gate__field"><span class="sr">Password</span>
+<input name="passcode" type="password" placeholder="Password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus required>
+<button type="submit" aria-label="Open the wall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+</label>
+<p class="gate__error" role="alert">${error}</p>
+</form>
+</main>
+</body></html>`;
+
+const html = (body, status = 200) => new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': NOINDEX } });
+
+// Only ever back to somewhere on Pinboard itself.
+const nextOf = (v) => (/^\/(?![/\\])/.test(v || '') && !v.startsWith('/login') ? v : '/');
+
+async function login(request, env, url) {
+  const next = nextOf(request.method === 'POST' ? null : url.searchParams.get('next'));
+  if (!env.PINBOARD_PASSCODE || (request.method !== 'POST' && (await authed(request, env)))) return Response.redirect(new URL(next, request.url), 302);
+  if (request.method !== 'POST') return html(GATE({ next }));
   const form = await request.formData();
+  const to = nextOf(String(form.get('next') || ''));
   if (!(await sameSecret(String(form.get('passcode') || ''), env.PINBOARD_PASSCODE))) {
     await new Promise((r) => setTimeout(r, 800)); // slow down guessing
-    return html(LOGIN_PAGE('That’s not it.'), 401);
+    return html(GATE({ error: 'That’s not it.', next: to }), 401);
   }
   return new Response(null, {
     status: 303,
-    headers: { Location: '/', 'Set-Cookie': `pb=${await tokenFor(env)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=34560000` },
+    headers: { Location: to, 'Set-Cookie': `pb=${await tokenFor(env)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=34560000` },
   });
 }
 
@@ -314,7 +365,7 @@ async function api(request, env, ctx, url) {
 
   if (pathname === '/api/config' && method === 'GET') {
     return json({
-      studios: studiosOf(env), commentColours: COMMENT_COLOURS, commentMax: COMMENT_MAX, titleMax: TITLE_MAX, descriptionMax: DESCRIPTION_MAX,
+      commentColours: COMMENT_COLOURS, commentMax: COMMENT_MAX, titleMax: TITLE_MAX, descriptionMax: DESCRIPTION_MAX,
       maxUploadMB: maxUpload(env) / 1024 / 1024,
     });
   }
@@ -446,7 +497,13 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
     try {
-      if (pathname === '/login') return await login(request, env);
+      if (pathname === '/login') return await login(request, env, url);
+      // The page itself comes through here first (run_worker_first), so the
+      // gate is the first thing anyone sees, not a flash of the wall.
+      if (pathname === '/' || pathname === '/index.html') {
+        if (!(await authed(request, env))) return html(GATE({ next: nextOf(pathname + url.search) }));
+        return env.ASSETS.fetch(request);
+      }
       if (!(await authed(request, env))) return json({ error: 'Locked' }, 401);
       if (pathname.startsWith('/files/')) return await serveFile(request, env, ctx, pathname.slice(7));
       if (pathname.startsWith('/api/')) return await api(request, env, ctx, url);

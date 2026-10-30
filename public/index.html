@@ -4,13 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Pinboard</title>
-  <meta name="description" content="Potting Shed's studio wall: work in progress, ideas and inspiration from Guernsey and Jersey.">
+  <meta name="description" content="Potting Shed's studio wall: work in progress, ideas and inspiration.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#F2F2F2">
   <link rel="icon" href="brand/leaf.png">
-  <!-- On a phone's home screen it's an app: its own icon, its own window. -->
-  <link rel="apple-touch-icon" href="brand/app-icon.png">
-  <link rel="manifest" href="manifest.webmanifest">
+  <!-- On a phone's home screen it's an app: its own icon, its own window. Each
+       phone's icon is a brand colour picked at random the first time it opens
+       Pinboard, and kept, so the icons round the studio all differ. The
+       colours are the ones scripts/app-icon.mjs makes. -->
+  <link rel="apple-touch-icon" href="brand/icons/245FFF.png" id="app-icon">
+  <link rel="manifest" href="brand/icons/245FFF.webmanifest" id="app-manifest">
+  <script>
+    (() => {
+      const all = ['245FFF', 'FE1658', 'FF16A5', 'FF840A', 'FDE619', 'CEFF00', '69FF46', '01FECD', '12CDFF', 'FFADA2'];
+      let c = all[Math.floor(Math.random() * all.length)];
+      try {
+        const kept = localStorage.getItem('pb.icon');
+        if (all.includes(kept)) c = kept;
+        else localStorage.setItem('pb.icon', c);
+      } catch {}
+      document.getElementById('app-icon').href = `brand/icons/${c}.png`;
+      document.getElementById('app-manifest').href = `brand/icons/${c}.webmanifest`;
+    })();
+  </script>
   <meta name="apple-mobile-web-app-title" content="Pinboard">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -88,8 +104,8 @@
     <p class="pop__label">Show</p>
     <div class="pop__seg" data-group="show">
       <button type="button" data-value="all">All</button>
-      <button type="button" data-value="public">Public</button>
-      <button type="button" data-value="wip" title="Work in progress">WIP</button>
+      <button type="button" data-value="wip" title="In progress">WIP</button>
+      <button type="button" data-value="public">Approved</button>
       <button type="button" data-value="inspo">Inspo</button>
       <button type="button" data-value="social">Social</button>
     </div>
@@ -151,12 +167,16 @@
         <span class="drop__hint">Drop images or video here, or <u>browse</u>.<br><small>You can paste, or drag straight onto the wall too.</small></span>
         <span class="drop__previews" id="previews"></span>
       </label>
-      <fieldset class="field chips" id="media-type">
+      <fieldset class="field chips" id="media-what">
         <legend>What is it</legend>
-        <label><input type="radio" name="type" value="wip" checked><span>Work in progress</span></label>
-        <label><input type="radio" name="type" value="public"><span>Public</span></label>
-        <label><input type="radio" name="type" value="inspo"><span>Inspo</span></label>
-        <label><input type="radio" name="type" value="social"><span>Social</span></label>
+        <label><input type="radio" name="what" value="work" checked><span>Our work</span></label>
+        <label><input type="radio" name="what" value="inspo"><span>Inspo</span></label>
+        <label><input type="radio" name="what" value="social"><span>Social</span></label>
+      </fieldset>
+      <fieldset class="field chips" id="media-stage">
+        <legend>Work status</legend>
+        <label><input type="radio" name="stage" value="wip" checked><span>In progress</span></label>
+        <label><input type="radio" name="stage" value="public"><span>Approved</span></label>
       </fieldset>
       <p class="field__note" id="type-note"></p>
       <label class="field" id="media-source-field" hidden>
@@ -171,19 +191,10 @@
         <span>Description <small>optional</small></span>
         <textarea id="media-description" maxlength="400" rows="2" placeholder="What it is, what it’s for, what feedback would help"></textarea>
       </label>
-      <fieldset class="field chips">
-        <legend>Size on the wall</legend>
-        <label><input type="radio" name="size" value="s"><span>Small</span></label>
-        <label><input type="radio" name="size" value="m" checked><span>Medium</span></label>
-        <label><input type="radio" name="size" value="l"><span>Large</span></label>
-      </fieldset>
-      <div class="who-row">
-        <label class="field">
-          <span>Your name</span>
-          <input type="text" id="media-name" maxlength="40" autocomplete="given-name" placeholder="So people know who pinned it">
-        </label>
-        <fieldset class="field chips" id="media-studio"></fieldset>
-      </div>
+      <label class="field">
+        <span>Your name</span>
+        <input type="text" id="media-name" maxlength="40" autocomplete="given-name" placeholder="So people know who pinned it">
+      </label>
       <p class="field__note" id="media-board-note" hidden></p>
       <p class="field__note prototype-only">Prototype: this is saved in your browser only. Nobody else will see it until Pinboard goes live.</p>
       <p class="sheet__status" id="media-status" role="status"></p>
@@ -217,7 +228,7 @@
         <h2 id="home-heading">Make it your <em>homepage</em></h2>
         <button class="x" type="button" data-close aria-label="Close">&times;</button>
       </header>
-      <p class="sheet__lede">Open a browser, see what both studios are making. A different mix every time.</p>
+      <p class="sheet__lede">Open a browser, see what the studio's making. A different mix every time.</p>
       <div class="copy-row">
         <code id="home-url"></code>
         <button class="btn btn--accent" type="button" id="home-copy">Copy link</button>
@@ -267,8 +278,8 @@
       <div class="focus__palette" id="focus-palette" aria-label="Colours in this piece"></div>
       <div class="focus__type" id="focus-type">
         <div class="focus__seg" role="group" aria-label="What it is">
-          <button type="button" data-type="wip" title="Work in progress">WIP</button>
-          <button type="button" data-type="public">Public</button>
+          <button type="button" data-type="wip">In progress</button>
+          <button type="button" data-type="public">Approved</button>
           <button type="button" data-type="inspo">Inspo</button>
           <button type="button" data-type="social">Social</button>
         </div>

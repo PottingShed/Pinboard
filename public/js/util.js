@@ -77,7 +77,7 @@ export async function api(path, opts = {}) {
     headers: opts.body ? { 'Content-Type': 'application/json' } : {},
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  if (res.status === 401) { location.href = '/login'; throw new Error('Locked'); }
+  if (res.status === 401) { location.href = `/login?next=${encodeURIComponent(location.pathname + location.search)}`; throw new Error('Locked'); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
   return data;

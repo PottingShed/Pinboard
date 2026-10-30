@@ -8,11 +8,12 @@ const saved = (key) => params.get(key) ?? (() => { try { return localStorage.get
 const oneOf = (v, allowed, fallback) => (allowed.includes(v) ? v : fallback);
 const hexOrNull = (v) => (/^#?[0-9a-f]{6}$/i.test(v || '') ? `#${v.replace('#', '').toLowerCase()}` : null);
 
-// What a piece is, and so who it's for. Public and Social show on the TVs;
-// nothing else ever does.
+// What a piece is, and so who it's for. Our own work is in progress (studio
+// only) or approved (fine for anyone to see). Approved work and Social show on
+// the TVs; nothing else ever does.
 export const TYPES = {
-  wip: { name: 'Work in progress', short: 'WIP', note: 'Studio only. Never on the TVs.' },
-  public: { name: 'Public', note: 'Our work, fine for anyone to see. Shows on the studio TVs.' },
+  wip: { name: 'In progress', short: 'WIP', note: 'Not signed off yet. Studio only, never on the TVs.' },
+  public: { name: 'Approved', note: 'Signed off and fine for anyone to see. Shows on the studio TVs.' },
   inspo: { name: 'Inspo', note: 'Work we love that we didn’t make. Not on the TVs.' },
   social: { name: 'Social', note: 'Life at Potting Shed. Shows on the studio TVs.' },
 };
@@ -20,7 +21,6 @@ const ON_TVS = new Set(['public', 'social']);
 
 export const state = {
   config: {
-    studios: ['Guernsey', 'Jersey'],
     commentColours: ['#FDE619', '#CEFF00', '#69FF46', '#01FECD', '#12CDFF', '#245FFF', '#FF16A5', '#FE1658', '#FF840A', '#FFADA2'],
     commentMax: 100, titleMax: 80, maxUploadMB: 250,
   },

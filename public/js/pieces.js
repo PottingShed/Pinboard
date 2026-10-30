@@ -18,7 +18,7 @@ function tapeFor(id) {
 
 // onColours(p, imageElement) is called once an image without colours has loaded.
 // defer leaves the image unloaded until wake() is called, for walls bigger than the screen.
-// What a piece is shows on its tape (data-type, styles.css): plain for public
+// What a piece is shows on its tape (data-type, styles.css): plain for approved
 // work, coloured and labelled for the rest.
 export function buildPiece(p, w, hgt, { fixings = true, lazy = false, defer = false, onColours } = {}) {
   const el = h('div', { class: `pin pin--${p.kind}`, 'data-id': p.id, 'data-type': p.type, style: `width:${w}px;height:${hgt}px` });
@@ -224,7 +224,7 @@ export function popDot(dot) {
 // Title, who and when, and the latest comment if there is one.
 export function describe(p) {
   const from = p.origin === 'case-study' ? 'Case study' : p.origin === 'archive' ? 'From the archive' : null;
-  const who = from || [p.type === 'inspo' ? 'Inspo' : null, p.author, p.studio].filter(Boolean).join(' · ');
+  const who = from || [p.type === 'inspo' ? 'Inspo' : null, p.author].filter(Boolean).join(' · ');
   const last = childrenOf(p.id).at(-1);
   return {
     title: p.title || 'Untitled',
