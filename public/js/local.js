@@ -61,6 +61,8 @@ export async function localPins() {
       ask('files', 'readonly', (s) => s.getAll()),
     ]);
     names.forEach((name, i) => { if (!urls.has(name)) urls.set(name, URL.createObjectURL(blobs[i])); });
+    // Saved before there were types: inspiration is inspo, private is work in progress.
+    for (const p of pins) p.type ||= p.origin === 'inspiration' ? 'inspo' : p.private ? 'wip' : 'public';
     return pins;
   } catch {
     return []; // private browsing, or storage switched off: just the snapshot
@@ -70,28 +72,36 @@ export async function localPins() {
 // Stand-ins for the live API's create, change and take-down, for this browser only.
 const clean = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 const cleanText = (v, max) => (typeof v === 'string' ? v.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, max) : '');
+const TYPES = ['public', 'wip', 'inspo', 'social'];
+// Where a sticky note sits on its piece, as on the live site.
+function place(body) {
+  const ok = (v) => typeof v === 'number' && Number.isFinite(v);
+  if (!ok(body.ax) || !ok(body.ay)) return null;
+  const share = (v) => Math.round(Math.min(1, Math.max(0, v)) * 1000) / 1000;
+  return { ax: share(body.ax), ay: share(body.ay) };
+}
 
 export async function createPin(body) {
   const id = `local${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const base = {
-    id, kind: body.kind, origin: body.origin === 'inspiration' ? 'inspiration' : 'studio', parent_id: null,
+    id, kind: body.kind, origin: 'studio', parent_id: null,
     src: null, thumb: null, nat_w: null, nat_h: null, size: null, rot: 0, fix: null, fix_color: null,
     title: null, description: null, source: null, text: null, color: null, colors: body.colors || null,
-    author: clean(body.author, 40) || null, studio: clean(body.studio, 40) || null, private: 0, created_at: Date.now(),
+    author: clean(body.author, 40) || null, studio: clean(body.studio, 40) || null, type: 'public', ax: null, ay: null, created_at: Date.now(),
   };
   let pin;
   if (body.kind === 'comment') {
     const text = clean(body.text, 100);
     if (!text) throw new Error('Write something first');
-    pin = { ...base, origin: 'studio', colors: null, text, color: body.color, parent_id: body.parent_id };
+    pin = { ...base, colors: null, text, color: body.color, parent_id: body.parent_id, ...place(body) };
   } else {
     pin = {
       ...base,
       src: body.src, thumb: body.thumb || null, nat_w: body.nat_w, nat_h: body.nat_h, size: body.size || 'm',
       title: clean(body.title, 80) || null,
       description: cleanText(body.description, 400) || null,
-      source: base.origin === 'inspiration' ? clean(body.source, 300) || null : null,
-      private: body.private ? 1 : 0,
+      source: body.type === 'inspo' ? clean(body.source, 300) || null : null,
+      type: TYPES.includes(body.type) ? body.type : 'wip',
     };
   }
   await ask('pins', 'readwrite', (s) => s.put(pin));
@@ -102,7 +112,8 @@ export async function updatePin(id, changes) {
   if (!isLocal(id)) throw new Error('In the prototype you can only change things you added in this browser.');
   const pin = await ask('pins', 'readonly', (s) => s.get(id));
   if (!pin) throw new Error('Not found');
-  if (typeof changes.private === 'boolean') pin.private = changes.private ? 1 : 0;
+  if (TYPES.includes(changes.type)) pin.type = changes.type;
+  Object.assign(pin, place(changes));
   if (typeof changes.description === 'string') pin.description = cleanText(changes.description, 400) || null;
   await ask('pins', 'readwrite', (s) => s.put(pin));
   return pin;

@@ -5,8 +5,8 @@
 //   npm run dev                          (in another terminal)
 //   node scripts/build-preview.mjs       (reads http://localhost:8787 by default)
 //
-// A preview site is public, so only public work goes in, with no comments
-// except the starter one, and no private work at all. To keep it light it uses
+// A preview site is public, so only Public work goes in (no work in progress,
+// inspo or social photos), with no comments except the starter one. To keep it light it uses
 // the 960px previews of images and leaves out videos over 12MB.
 
 import fs from 'node:fs';
@@ -50,7 +50,7 @@ let bytes = 0;
 let skipped = 0;
 for (const p of pins) {
   if (p.kind === 'comment') continue;
-  if (p.private) { skipped++; continue; }
+  if (p.type !== 'public') { skipped++; continue; }
   if (p.kind === 'video' && (await sizeOf(p.src)) > MAX_VIDEO) { skipped++; continue; }
   const piece = { ...p };
   if (p.kind === 'image' && p.thumb) piece.src = p.thumb; // the 960px copy everywhere
@@ -64,4 +64,4 @@ const comments = pins.filter((p) => p.kind === 'comment' && p.author === 'Pinboa
 
 fs.writeFileSync(path.join(OUT, 'data', 'pins.json'), JSON.stringify({ pins: [...kept, ...comments] }));
 fs.writeFileSync(path.join(OUT, 'data', 'config.json'), JSON.stringify(config));
-console.log(`\nPreview built in docs/: ${kept.length} pieces (${skipped} left out: private or big videos), ${Math.round(bytes / 1e6)}MB of media.`);
+console.log(`\nPreview built in docs/: ${kept.length} pieces (${skipped} left out: not Public, or big videos), ${Math.round(bytes / 1e6)}MB of media.`);

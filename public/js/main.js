@@ -1,10 +1,10 @@
 // Pinboard: ties the two views, the menus, adding work, comments, live
 // updates and TV mode together.
 
-import { $, $$, h, sleep, api, toast, fmtDate, fileUrl, hash, reduceMotion, PREVIEW } from './util.js';
-import { state, remember, childrenOf, selection, matches, fromWebsite, isInspiration, onTvs, boardsWith } from './store.js';
+import { $, $$, h, clamp, sleep, api, toast, fmtDate, fileUrl, hash, reduceMotion, PREVIEW } from './util.js';
+import { state, remember, childrenOf, selection, matches, inView, fromWebsite, ourWork, onTvs, boardsWith, TYPES } from './store.js';
 import { analyse, hsv, toHex, fromHex, toHsv } from './colour.js';
-import { DARK_COLOURS, describe, refreshHeart, HEART } from './pieces.js';
+import { DARK_COLOURS, describe, refreshHeart, retape, notePlace, HEART } from './pieces.js';
 import { initBoards, loadBoards, applyBoard, renderMenu, menuClosed, openSave, saveTo } from './boards.js';
 import { createWall } from './wall.js';
 import { createGrid } from './grid.js';
@@ -19,7 +19,7 @@ const yours = (p) => !PREVIEW || isLocalPin(p);
 // Royal blue is the only one dark enough to need light text on it.
 const BRAND = ['#FE1658', '#FDE619', '#01FECD', '#12CDFF', '#245FFF', '#FF16A5', '#FF840A', '#FFADA2', '#CEFF00', '#69FF46'];
 
-const hooks = { onTap: tap, onColours: saveColours, onInteract: interact };
+const hooks = { onTap: tap, onColours: saveColours, onInteract: interact, onHold: holdNote, onNoteMove: moveNote };
 const wall = createWall($('#wall'), hooks);
 const grid = createGrid($('#grid'), hooks);
 let view = wall;
@@ -81,7 +81,7 @@ const palettes = new Map();
 
 // A handful only: client work (not the showreel), one card per project, and
 // well spread out.
-const paletteWorthy = (p) => !isInspiration(p) && !/showreel/i.test(p.title || '');
+const paletteWorthy = (p) => ourWork(p) && !/showreel/i.test(p.title || '');
 const PALETTE_EVERY = 32;
 const PALETTE_MAX = 5;
 
@@ -129,31 +129,36 @@ function render() {
   updateChrome(list);
 }
 
+// What an empty wall says when you're looking at one type, and what its button adds.
+const EMPTY = {
+  public: ['No ', h('em', {}, 'public'), ' work yet.'],
+  wip: ['No work in ', h('em', {}, 'progress'), ' yet.'],
+  inspo: ['No ', h('em', {}, 'inspo'), ' pinned yet.'],
+  social: ['No ', h('em', {}, 'social'), ' snaps yet.'],
+};
+const ADD = { inspo: 'Add inspo', social: 'Add photos' };
+
 function updateChrome(list) {
   const board = state.boards.get(state.board);
   if (list) {
-    const inspiration = !board && state.show === 'inspiration';
+    const type = board ? null : state.show;
     // e.g. nothing but video, and video's off
-    const filteredOut = !state.video && (board ? board.ids.size > 0 : state.pins.size && !inspiration);
+    const filteredOut = !state.video && [...state.pins.values()].some((p) => p.kind === 'video' && inView(p));
     $('#empty').hidden = list.length > 0;
     $('#empty-text').replaceChildren(...(filteredOut
       ? ['Nothing to show', h('br'), 'with video ', h('em', {}, 'off'), '.']
       : board
         ? ['Nothing on ', h('em', {}, board.name), ' yet.', h('br'), h('small', {}, 'Tap the heart on any piece to save it here.')]
-        : inspiration
-          ? ['No ', h('em', {}, 'inspiration'), ' pinned yet.']
-          : state.show === 'public'
-            ? ['No ', h('em', {}, 'public'), ' work yet.']
-            : ['The wall’s bare.', h('br'), 'Pin the ', h('em', {}, 'first'), ' thing.']));
-    $('#empty-add').textContent = board ? 'Back to all work' : inspiration ? 'Add inspiration' : 'Add work';
+        : EMPTY[type] || ['The wall’s bare.', h('br'), 'Pin the ', h('em', {}, 'first'), ' thing.']));
+    $('#empty-add').textContent = board ? 'Back to all work' : ADD[type] || 'Add work';
     $('#empty-clear').hidden = !filteredOut;
     $('#empty-clear').textContent = 'Turn video on';
   }
 
-  // On a board, or in Public or Inspiration, a label by the logo says so, with a way back.
+  // On a board, or looking at one type, a label by the logo says so, with a way back.
   $('#section').hidden = state.tv || (!board && state.show === 'all');
   $('#section').classList.toggle('section--board', !!board);
-  $('#section-name').textContent = board ? board.name : state.show;
+  $('#section-name').textContent = board ? board.name : TYPES[state.show]?.name.toLowerCase() || '';
   $('#boards-btn').classList.toggle('is-on', !!board);
   $('#video-switch').checked = state.video;
 
@@ -484,6 +489,7 @@ function tap(id, hit) {
   }
   const p = state.pins.get(id);
   if (p && hit?.closest?.('.heart')) return openSave(p);
+  if (p && hit?.closest?.('.jot')) return startNote(p.id);
   if (p) openFocus(p.parent_id ? state.pins.get(p.parent_id) || p : p);
 }
 
@@ -515,13 +521,8 @@ function openMedia(files = []) {
   if (!media.busy) setMediaStatus('');
   addFiles(files);
   if (!mediaSheet.open) {
-    // private unless someone says otherwise (or they're looking at public work)
-    const vis = state.show === 'public' ? 'public' : 'private';
-    $('#media-form').elements.visibility.value = vis;
-    $('#visibility-note').textContent = VISIBILITY[vis];
-    // in the inspiration section, what you add is inspiration
-    $('#media-form').elements.origin.value = state.show === 'inspiration' ? 'inspiration' : 'studio';
-    showOrigin();
+    $('#media-form').elements.type.value = startingType();
+    showType();
     const board = state.boards.get(state.board);
     $('#media-board-note').hidden = !board;
     $('#media-board-note').textContent = board ? `It goes on the wall, and on ${board.name} too.` : '';
@@ -562,22 +563,38 @@ function renderPreviews() {
   $('#media-submit').textContent = media.items.length > 1 ? `Pin ${media.items.length}` : 'Pin it';
 }
 
-// Our work, or inspiration (work that isn't ours, kept in its own section, with where it came from).
-function showOrigin() {
-  const inspiration = $('#media-form').elements.origin.value === 'inspiration';
-  $('#media-source-field').hidden = !inspiration;
-  $('#media-heading').replaceChildren('Add ', h('em', {}, inspiration ? 'inspiration' : 'work'));
-  $('#media-title').placeholder = inspiration ? 'e.g. Pentagram, Rijksmuseum identity' : 'e.g. Rams GIP, round two';
-  $('#media-description').placeholder = inspiration ? 'Why it’s worth a look' : 'What it is, what it’s for, what feedback would help';
+// What's added is work in progress unless someone says otherwise, so nothing
+// reaches the TVs by accident. Looking at one type, you add that type. And
+// once someone's added Social or Inspo it stays picked for the rest of the
+// day, so a night out's photos don't each need it choosing again.
+const STICKY_TYPES = ['social', 'inspo'];
+const today = () => new Date().toDateString();
+function startingType() {
+  if (TYPES[state.show]) return state.show;
+  try {
+    const last = JSON.parse(localStorage.getItem('pb.lastType'));
+    if (last?.day === today() && STICKY_TYPES.includes(last.type)) return last.type;
+  } catch {}
+  return 'wip';
+}
+function keepType(type) {
+  try { localStorage.setItem('pb.lastType', JSON.stringify({ type, day: today() })); } catch {}
 }
 
-const VISIBILITY = {
-  private: 'Studio only. Never shown on the studio TVs.',
-  public: 'Fine for anyone to see, including on the studio TVs.',
-};
+// The sheet fits what's being added: inspo says where it's from, for one.
+const HEADINGS = { inspo: 'inspo', social: 'photos' };
+const TITLES = { inspo: 'e.g. Pentagram, Rijksmuseum identity', social: 'e.g. Summer party, Jersey' };
+const DESCRIPTIONS = { inspo: 'Why it’s worth a look', social: 'Who, where, what’s going on' };
+function showType() {
+  const type = $('#media-form').elements.type.value;
+  $('#type-note').textContent = TYPES[type].note;
+  $('#media-source-field').hidden = type !== 'inspo';
+  $('#media-heading').replaceChildren('Add ', h('em', {}, HEADINGS[type] || 'work'));
+  $('#media-title').placeholder = TITLES[type] || 'e.g. Rams GIP, round two';
+  $('#media-description').placeholder = DESCRIPTIONS[type] || 'What it is, what it’s for, what feedback would help';
+}
 $('#media-form').addEventListener('change', (e) => {
-  if (e.target.name === 'visibility') $('#visibility-note').textContent = VISIBILITY[e.target.value];
-  if (e.target.name === 'origin') showOrigin();
+  if (e.target.name === 'type') showType();
 });
 
 function setMediaStatus(msg, error = false) {
@@ -585,10 +602,13 @@ function setMediaStatus(msg, error = false) {
   $('#media-status').classList.toggle('error', error);
 }
 
-$('#media-input').addEventListener('change', (e) => {
-  addFiles([...e.target.files]);
-  e.target.value = '';
-});
+// Browsing on a computer; on a phone, the camera or the camera roll.
+for (const input of $$('#media-input, .pick__input')) {
+  input.addEventListener('change', (e) => {
+    addFiles([...e.target.files]);
+    e.target.value = '';
+  });
+}
 const drop = $('#drop');
 drop.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#media-input').click(); }
@@ -622,9 +642,9 @@ $('#media-form').addEventListener('submit', async (e) => {
   const title = $('#media-title').value;
   const description = $('#media-description').value;
   const size = $('#media-form').elements.size.value;
-  const isPrivate = $('#media-form').elements.visibility.value !== 'public';
-  const origin = $('#media-form').elements.origin.value === 'inspiration' ? 'inspiration' : 'studio';
-  const source = origin === 'inspiration' ? $('#media-source').value : '';
+  const type = $('#media-form').elements.type.value;
+  const source = type === 'inspo' ? $('#media-source').value : '';
+  keepType(type);
   const total = media.items.length;
   let last = null;
   try {
@@ -635,7 +655,7 @@ $('#media-form').addEventListener('submit', async (e) => {
       const prepped = item.kind === 'image' ? await prepImage(item.file) : await prepVideo(item.file);
       const src = await uploadBlob(prepped.full, (f) => setMediaStatus(`Uploading${n} · ${Math.round(f * 100)}%`));
       const thumb = prepped.thumb ? await uploadBlob(prepped.thumb) : null;
-      last = await create({ kind: item.kind, src, thumb, nat_w: prepped.w, nat_h: prepped.h, size, title, description, colors: prepped.colors, private: isPrivate, origin, source });
+      last = await create({ kind: item.kind, src, thumb, nat_w: prepped.w, nat_h: prepped.h, size, title, description, colors: prepped.colors, type, source });
       if (state.board) await saveTo(state.board, last.id); // added while looking at a board: it goes on the board too
       URL.revokeObjectURL(item.url);
       media.items.shift();
@@ -643,9 +663,9 @@ $('#media-form').addEventListener('submit', async (e) => {
     }
     media.busy = false;
     mediaSheet.close();
-    // Show it where it belongs: inspiration added from our work (or the other way) switches section.
+    // Make sure it's in sight: a Social photo added while looking at Public, say, opens All.
     if (last && !matches(last)) {
-      remember('show', isInspiration(last) ? 'inspiration' : 'all');
+      remember('show', 'all');
       remember('colour', null);
       if (!state.video && last.kind === 'video') setVideo(true);
       render();
@@ -685,7 +705,8 @@ function landed(pin) {
 const focus = $('#focus');
 let focusId = null;
 
-function openFocus(p) {
+// writing: straight to the box for a new note.
+function openFocus(p, writing = false) {
   focusId = p.id;
   if (!showing.some((q) => q.id === p.id)) showing = [p, ...showing];
   const box = $('#focus-media');
@@ -697,7 +718,7 @@ function openFocus(p) {
     box.replaceChildren(v);
   }
   const d = describe(p);
-  $('#focus-meta').textContent = fromWebsite(p) ? d.by : [isInspiration(p) ? 'Inspiration' : null, p.author, p.studio, fmtDate(p.created_at, true)].filter(Boolean).join(' · ');
+  $('#focus-meta').textContent = fromWebsite(p) ? d.by : [p.author, p.studio, fmtDate(p.created_at, true)].filter(Boolean).join(' · ');
   renderSource(p);
   $('#focus-title').textContent = p.title || 'Untitled';
   // The piece's colours, sized by how much of it they cover. Tap one to sort by it.
@@ -712,7 +733,7 @@ function openFocus(p) {
     onclick: () => { focus.close(); sortByColour(c); },
   })));
   renderDescription(p);
-  renderVisibility(p);
+  renderType(p);
   renderSaved(p);
   renderComments();
   $('#comment-name').value = state.me?.name || '';
@@ -722,6 +743,7 @@ function openFocus(p) {
   $('#focus-remove').hidden = !yours(p);
   updateComment();
   if (!focus.open) focus.showModal();
+  if (writing) $('#comment-text').focus();
 }
 
 // Where a piece of inspiration came from: a link if it's a link.
@@ -771,21 +793,21 @@ $('#describe-form').addEventListener('submit', async (e) => {
   }
 });
 
-// Public or private, switchable any time. Private work never shows on the TVs.
-function renderVisibility(p) {
-  $('#focus-visibility').hidden = !yours(p);
-  for (const b of $$('#focus-visibility button')) b.setAttribute('aria-pressed', String(!!p.private === (b.dataset.private === '1')));
-  $('#focus-visibility-note').textContent = p.private ? 'Studio only' : 'On the TVs';
+// What it is, changeable any time: work in progress goes public, say.
+// Only Public and Social show on the TVs.
+function renderType(p) {
+  $('#focus-type').hidden = !yours(p);
+  for (const b of $$('#focus-type button')) b.setAttribute('aria-pressed', String(p.type === b.dataset.type));
+  $('#focus-type-note').textContent = onTvs(p) ? 'On the TVs' : 'Not on the TVs';
 }
-$('#focus-visibility').addEventListener('click', async (e) => {
+$('#focus-type').addEventListener('click', async (e) => {
   const b = e.target.closest('button');
   const p = state.pins.get(focusId);
-  if (!b || !p) return;
-  const wanted = b.dataset.private === '1';
-  if (!!p.private === wanted) return;
+  if (!b || !p || p.type === b.dataset.type) return;
   try {
-    Object.assign(p, await api(`/api/pins/${p.id}`, { method: 'PATCH', body: { private: wanted } }));
-    renderVisibility(p);
+    Object.assign(p, await api(`/api/pins/${p.id}`, { method: 'PATCH', body: { type: b.dataset.type } }));
+    renderType(p);
+    retape(p);
   } catch (err) {
     toast(err.message);
   }
@@ -837,10 +859,10 @@ $('#focus-media').addEventListener('click', (e) => { if (e.target === e.currentT
 
 // Comments: a short note and your name, kept with the piece wherever it lands.
 function renderComments() {
-  $('#focus-notes').replaceChildren(...childrenOf(focusId).map((c) => h('li', { class: DARK_COLOURS.has(c.color) ? 'is-dark' : '', style: `--c:${c.color}` }, [
+  $('#focus-notes').replaceChildren(...childrenOf(focusId).map((c) => h('li', { style: `--c:${c.color}` }, [
     h('span', {}, c.text),
     h('small', {}, [c.author, c.studio, fmtDate(c.created_at)].filter(Boolean).join(' · ')),
-    yours(c) ? h('button', { type: 'button', class: 'focus__unnote', 'aria-label': 'Remove this comment', title: 'Remove', onclick: () => removeComment(c.id) }, '×') : null,
+    yours(c) ? h('button', { type: 'button', class: 'focus__unnote', 'aria-label': 'Remove this note', title: 'Remove', onclick: () => removeComment(c.id) }, '×') : null,
   ])));
 }
 
@@ -862,10 +884,9 @@ $('#comment-form').addEventListener('submit', async (e) => {
   if (!name) return $('#comment-name').focus();
   if (!text || !focusId) return;
   if (name !== state.me?.name) rememberMe(name);
-  const colours = state.config.commentColours;
   try {
     $('#comment-post').disabled = true;
-    await create({ kind: 'comment', text, parent_id: focusId, color: colours[Math.floor(Math.random() * colours.length)] });
+    await create({ kind: 'comment', text, parent_id: focusId, color: noteColour(focusId) });
     $('#comment-text').value = '';
     renderComments();
   } catch (err) {
@@ -882,6 +903,117 @@ async function removeComment(id) {
     toast(err.message);
   }
 }
+
+// ------------------------------------------------------------------ sticky notes
+//
+// Comments show on the wall as sticky notes on their piece (pieces.js), and a
+// new one can go straight on where you want it: the note button by the heart,
+// N with the pointer over a piece, or a finger held on it. Type, then Enter to
+// stick it. Esc, or clicking away with nothing written, takes it off again.
+// In the grid, the note button opens the piece with its note box ready.
+
+// Each note is any brand colour (with black text), never the same as the
+// one it goes on top of.
+function noteColour(id) {
+  const top = childrenOf(id).at(-1)?.color;
+  const colours = state.config.commentColours.filter((c) => c !== top);
+  return colours[Math.floor(Math.random() * colours.length)];
+}
+
+let draft = null;
+
+function startNote(id, at, focusNow = true) {
+  const p = state.pins.get(id);
+  if (!p || state.tv) return;
+  const el = state.view === 'wall' && $(`#wall [data-id="${CSS.escape(id)}"]`);
+  if (!el) return openFocus(p, true);
+  closeDraft();
+  let { ax, ay } = notePlace(id);
+  if (at) {
+    const r = el.getBoundingClientRect();
+    const share = (v) => Math.round(clamp(v, 0, 1) * 1000) / 1000;
+    ax = share((at.x - r.left) / r.width);
+    ay = share((at.y - r.top) / r.height);
+  }
+  const text = h('textarea', { maxlength: state.config.commentMax, rows: '3', placeholder: 'Add a note…', 'aria-label': 'Note' });
+  const who = state.me?.name ? null : h('input', { type: 'text', maxlength: '40', placeholder: 'Your name', autocomplete: 'given-name', 'aria-label': 'Your name' });
+  const note = h('form', { class: 'note', novalidate: true }, [text, who, h('small', { class: 'note__hint' }, 'Enter to stick it')]);
+  const colour = noteColour(id);
+  const stack = h('div', { class: 'stack is-draft', style: `--x:${ax};--y:${ay};--c:${colour}` }, note);
+  el.querySelector(':scope > .jot').before(stack);
+  view.notes(id, 'quiet'); // brings the piece to the front
+  draft = { id, stack, text, who, ax, ay, colour };
+
+  const keys = (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeDraft(); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); stickNote(); }
+  };
+  text.addEventListener('keydown', keys);
+  who?.addEventListener('keydown', keys);
+  // Clicking away sticks it, or takes it off if there's nothing on it.
+  note.addEventListener('focusout', (e) => {
+    if (!stack.contains(e.relatedTarget)) setTimeout(() => { if (draft?.stack === stack && !stack.contains(document.activeElement)) stickNote(); }, 0);
+  });
+  if (focusNow) text.focus({ preventScroll: true });
+}
+
+// Held a finger on a piece: the note appears under it, and the keyboard comes
+// up as the finger lifts (phones only bring it up for a tap or a lift).
+function holdNote(id, x, y) {
+  navigator.vibrate?.(8);
+  startNote(id, { x, y }, false);
+  const ready = () => draft?.text.focus({ preventScroll: true });
+  addEventListener('touchend', ready, { once: true });
+  addEventListener('pointerup', ready, { once: true });
+}
+
+async function stickNote() {
+  const d = draft;
+  if (!d || d.saving) return;
+  const text = d.text.value.trim();
+  const name = (d.who ? d.who.value : state.me?.name || '').trim();
+  if (!text) return closeDraft();
+  if (!name) return d.who.focus();
+  d.saving = true;
+  if (name !== state.me?.name) rememberMe(name);
+  try {
+    await create({ kind: 'comment', text, parent_id: d.id, color: d.colour, ax: d.ax, ay: d.ay });
+    if (draft === d) closeDraft();
+  } catch (err) {
+    d.saving = false;
+    toast(err.message);
+  }
+}
+
+function closeDraft() {
+  draft?.stack.remove();
+  draft = null;
+}
+
+// Notes dragged round their piece stay where they're put, for everyone.
+async function moveNote(id, ax, ay) {
+  const c = state.pins.get(id);
+  if (!c) return;
+  const was = { ax: c.ax, ay: c.ay };
+  Object.assign(c, { ax, ay });
+  try {
+    Object.assign(c, await api(`/api/pins/${id}`, { method: 'PATCH', body: { ax, ay } }));
+  } catch (err) {
+    Object.assign(c, was);
+    view.notes(c.parent_id);
+    toast(err.message);
+  }
+}
+
+// Notes can be folded away, leaving just the dot (only on this screen).
+function setNotes(on) {
+  remember('notes', on ? null : 'off');
+  state.notes = on;
+  document.documentElement.classList.toggle('notes-off', !on);
+  $('#notes-switch').checked = on;
+}
+$('#notes-switch').addEventListener('change', (e) => setNotes(e.target.checked));
+setNotes(state.notes);
 
 $('#focus-remove').addEventListener('click', async (e) => {
   const b = e.currentTarget;
@@ -958,6 +1090,12 @@ addEventListener('keydown', (e) => {
     case 'g': $('#view-btn').click(); break;
     case 's': render(); break;
     case 't': setTv(!state.tv); break;
+    case 'n': {
+      const piece = document.elementFromPoint(pointer.x, pointer.y)?.closest('[data-id]');
+      if (!piece || !state.pins.has(piece.dataset.id)) return;
+      startNote(piece.dataset.id, onWall ? pointer : null);
+      break;
+    }
     default: return;
   }
   e.preventDefault();
@@ -1031,15 +1169,17 @@ function onNewPin(p) {
   putUp(p, 'arrive'); // it just appears, no fanfare
 }
 
-// A piece went public or private. A TV drops anything that's gone private.
+// A piece changed type or description. A TV drops anything that's no longer for the TVs.
 function onUpdated(p) {
   const mine = state.pins.get(p.id);
   if (!mine) return;
   Object.assign(mine, p);
+  if (p.parent_id) return view.notes(p.parent_id); // a note moved
   if (focusId === p.id) {
-    renderVisibility(mine);
+    renderType(mine);
     if ($('#describe-form').hidden) renderDescription(mine);
   }
+  retape(mine);
   if (state.tv && !onTvs(mine)) view.remove(p.id);
 }
 
@@ -1103,8 +1243,8 @@ async function resync() {
 // On the studio screens the board looks after itself, with the logo big in the
 // middle and changing colour every minute. The wall holds still and the grid
 // barely creeps; the change comes from the work itself, one piece at a time
-// (see tick). New public work from either studio goes up straight away.
-// Private work never shows here.
+// (see tick). New public work and social photos go up straight away.
+// Work in progress and inspo never show here.
 
 const tv = { run: 0, pausedUntil: 0, timers: [] };
 let wakeLock = null;
@@ -1120,7 +1260,7 @@ function setTv(on, glide = true) {
   history.replaceState(null, '', url);
   for (const t of tv.timers) clearInterval(t);
   tv.timers = [];
-  render(); // the TVs leave out private work, so the arrangement changes either way
+  render(); // the TVs leave out work in progress and inspo, so the arrangement changes either way
   if (on) {
     closePops();
     if (focus.open) focus.close();
@@ -1195,7 +1335,7 @@ function putOneUp(p) {
 // piece on screen; a comment just puts its dot on the piece.
 function tvPlace(p) {
   const piece = p.parent_id ? state.pins.get(p.parent_id) : p;
-  if (!piece || !matches(piece)) return; // private work, other sections and (if off) video stay off
+  if (!piece || !matches(piece)) return; // work in progress, inspo and (if off) video stay off
   if (p.parent_id) { view.notes(p.parent_id, 'arrive'); return; }
   if (putOneUp(p)) return; // fill the gap if there is one
   const oldest = view.visible().map((id) => state.pins.get(id)).filter(Boolean).sort((a, b) => a.created_at - b.created_at)[0];
@@ -1205,6 +1345,8 @@ function tvPlace(p) {
 
 // Hide the cursor (and the way out) on the TVs when nobody's touching anything.
 let idleTimer = 0;
+const pointer = { x: -1, y: -1 }; // where it last was, for N
+addEventListener('pointermove', (e) => { pointer.x = e.clientX; pointer.y = e.clientY; }, { passive: true });
 addEventListener('pointermove', () => {
   document.body.classList.remove('idle');
   clearTimeout(idleTimer);

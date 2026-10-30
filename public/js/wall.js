@@ -131,7 +131,7 @@ function compose(list, W, H) {
   return { placed, reach: next < order.length ? Math.max(0, order[next].d - 0.05) : 0.5 };
 }
 
-export function createWall(root, { onTap, onColours, onInteract }) {
+export function createWall(root, { onTap, onColours, onInteract, onHold, onNoteMove }) {
   const world = h('div', { class: 'world' });
   root.append(world);
   const cam = { x: 0, y: 0, s: 1 };
@@ -210,8 +210,8 @@ export function createWall(root, { onTap, onColours, onInteract }) {
     return el;
   }
 
-  // A comment came or went: redraw the dot on its piece. A new one brings the
-  // piece to the front so the dot isn't hidden.
+  // A comment came, went or moved: redraw the notes on its piece. A new one brings the
+  // piece to the front so the notes aren't hidden.
   function notes(id, how) {
     const el = els.get(id);
     if (!el) return null;
@@ -252,6 +252,22 @@ export function createWall(root, { onTap, onColours, onInteract }) {
     clearTimeout(motionTimer);
     motionTimer = setTimeout(() => world.classList.remove('moving'), 220);
     scheduleDetail();
+    sizeNotes();
+  }
+
+  // Sticky notes grow as you zoom out, to stay readable, up to half as big
+  // again; further out than that they fold down to their dots. A note being
+  // written stays readable however far out you are. The sizes go in steps,
+  // as each change restyles the whole wall.
+  let noteSize = {};
+  function sizeNotes() {
+    const step = (v) => Math.round(v * 20) / 20;
+    const note = step(clamp(0.62 / cam.s, 1, 1.5));
+    const draft = step(Math.max(1, 0.9 / cam.s));
+    if (note !== noteSize.note) root.style.setProperty('--note-scale', note);
+    if (draft !== noteSize.draft) root.style.setProperty('--draft-scale', draft);
+    root.classList.toggle('far', cam.s < 0.35);
+    noteSize = { note, draft };
   }
 
   function cancelAnim() {
@@ -389,20 +405,46 @@ export function createWall(root, { onTap, onColours, onInteract }) {
 
   root.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest('.is-draft')) return; // someone's writing a note
     try { root.setPointerCapture(e.pointerId); } catch {}
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const caught = !!camAnim?.glide; // a touch that stops a flick only stops it
     cancelAnim();
     onInteract();
     if (pointers.size === 2) {
-      if (gesture?.drag) putBack();
+      clearTimeout(gesture?.hold);
+      if (gesture?.drag || gesture?.stack) putBack();
       const [a, b] = [...pointers.values()];
       gesture = { pinch: true, d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
       return;
     }
     if (pointers.size > 2) return;
     const target = state.hand ? null : e.target.closest('[data-id]');
-    gesture = { id: target?.dataset.id, el: target, hit: e.target, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, drag: false };
+    // Dragging a piece's notes moves them round the piece instead of moving it.
+    const stack = target && !state.tv ? e.target.closest('.stack') : null;
+    // A finger always moves round the wall, wherever it lands, as on any map.
+    // Pieces only get shuffled with a mouse.
+    const touch = e.pointerType !== 'mouse';
+    const g = { id: target?.dataset.id, el: target, stack, touch, caught, hit: e.target, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, drag: false };
+    gesture = g;
+    // Hold a finger on a piece to stick a note on it, or on a note to pick it
+    // up and move it.
+    if (target && touch && !state.tv) {
+      g.hold = setTimeout(() => {
+        if (gesture !== g || g.moved) return;
+        if (stack) {
+          g.lifted = true;
+          stack.classList.add('lifted');
+          navigator.vibrate?.(8);
+          return;
+        }
+        g.held = true;
+        onHold(g.id, g.sx, g.sy);
+      }, 550);
+    }
   });
+  // …without the phone's own long-press menu getting in first.
+  root.addEventListener('contextmenu', (e) => { if (gesture?.held || (gesture?.hold && e.target.closest('[data-id]'))) e.preventDefault(); });
 
   root.addEventListener('pointermove', (e) => {
     if (!pointers.has(e.pointerId)) return;
@@ -419,11 +461,20 @@ export function createWall(root, { onTap, onColours, onInteract }) {
       return;
     }
     if (!gesture.moved && Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy) < 6) return;
+    if (gesture.held) return; // the note's already on its way
     if (!gesture.moved) {
       gesture.moved = true;
-      // Pieces can be shuffled about by hand (just for you, it's not saved).
-      gesture.drag = !!gesture.el && !state.tv;
-      if (gesture.drag) {
+      clearTimeout(gesture.hold);
+      if (gesture.touch && !gesture.lifted) gesture.stack = null;
+      // Pieces can be shuffled about with a mouse (just for you, it's not saved).
+      gesture.drag = !!gesture.el && !gesture.stack && !state.tv && !gesture.touch;
+      if (gesture.stack) {
+        const L = layout.get(gesture.id);
+        gesture.ax = parseFloat(gesture.stack.style.getPropertyValue('--x'));
+        gesture.ay = parseFloat(gesture.stack.style.getPropertyValue('--y'));
+        gesture.size = L ? { w: L.w, h: L.h } : { w: gesture.el.offsetWidth, h: gesture.el.offsetHeight };
+        gesture.stack.classList.add('lifted');
+      } else if (gesture.drag) {
         gesture.ox = parseFloat(gesture.el.style.left);
         gesture.oy = parseFloat(gesture.el.style.top);
         gesture.el.style.zIndex = ++zTop;
@@ -433,7 +484,13 @@ export function createWall(root, { onTap, onColours, onInteract }) {
       } else root.classList.add('panning');
       root.dispatchEvent(new CustomEvent('busy'));
     }
-    if (gesture.drag) {
+    if (gesture.stack) {
+      // Anywhere on the piece, as long as their middle stays on it.
+      gesture.nx = clamp(gesture.ax + (e.clientX - gesture.sx) / cam.s / gesture.size.w, 0, 1);
+      gesture.ny = clamp(gesture.ay + (e.clientY - gesture.sy) / cam.s / gesture.size.h, 0, 1);
+      gesture.stack.style.setProperty('--x', gesture.nx);
+      gesture.stack.style.setProperty('--y', gesture.ny);
+    } else if (gesture.drag) {
       const dx = (e.clientX - gesture.sx) / cam.s, dy = (e.clientY - gesture.sy) / cam.s;
       gesture.el.style.left = `${gesture.ox + dx}px`;
       gesture.el.style.top = `${gesture.oy + dy}px`;
@@ -441,12 +498,54 @@ export function createWall(root, { onTap, onColours, onInteract }) {
       cam.x -= (e.clientX - gesture.lx) / cam.s;
       cam.y -= (e.clientY - gesture.ly) / cam.s;
       applyCam();
+      if (gesture.touch) {
+        (gesture.trail ||= []).push({ t: e.timeStamp, x: e.clientX, y: e.clientY });
+        if (gesture.trail.length > 8) gesture.trail.shift();
+      }
     }
     gesture.lx = e.clientX;
     gesture.ly = e.clientY;
   });
 
+  // A flick carries on and slows to a stop, as a phone's own scrolling does.
+  // Letting go after holding still doesn't.
+  function glide(trail = [], t) {
+    const recent = trail.filter((p) => t - p.t < 100);
+    if (recent.length < 2 || reduceMotion) return;
+    const a = recent[0], b = recent.at(-1);
+    let vx = (b.x - a.x) / Math.max(b.t - a.t, 1); // px per ms
+    let vy = (b.y - a.y) / Math.max(b.t - a.t, 1);
+    if (Math.hypot(vx, vy) < 0.3) return;
+    const anim = { cancelled: false, glide: true, resolve() {} };
+    camAnim = anim;
+    let last = performance.now();
+    const step = (now) => {
+      if (anim.cancelled) return;
+      const dt = Math.min(now - last, 50);
+      last = now;
+      const was = { x: cam.x, y: cam.y };
+      cam.x -= (vx * dt) / cam.s;
+      cam.y -= (vy * dt) / cam.s;
+      applyCam();
+      if (cam.x === was.x) vx = 0; // reached the edge of the work
+      if (cam.y === was.y) vy = 0;
+      const k = Math.exp(-dt / 325);
+      vx *= k;
+      vy *= k;
+      if (Math.hypot(vx, vy) > 0.02) requestAnimationFrame(step);
+      else if (camAnim === anim) camAnim = null;
+    };
+    requestAnimationFrame(step);
+  }
+
   function putBack() {
+    if (gesture.stack) {
+      gesture.stack.classList.remove('lifted');
+      if (gesture.ax == null) return;
+      gesture.stack.style.setProperty('--x', gesture.ax);
+      gesture.stack.style.setProperty('--y', gesture.ay);
+      return;
+    }
     gesture.el.style.left = `${gesture.ox}px`;
     gesture.el.style.top = `${gesture.oy}px`;
     gesture.el.classList.remove('dragging');
@@ -459,14 +558,21 @@ export function createWall(root, { onTap, onColours, onInteract }) {
     gesture = null;
     root.classList.remove('panning');
     if (!g) return;
-    if (g.drag) {
+    clearTimeout(g.hold);
+    if (g.held) return;
+    if (g.stack && (g.moved || g.lifted)) {
+      g.stack.classList.remove('lifted');
+      if (g.nx != null) onNoteMove(g.stack.dataset.note, g.nx, g.ny);
+    } else if (g.moved && g.touch) {
+      if (e.type === 'pointerup') glide(g.trail, e.timeStamp);
+    } else if (g.drag) {
       g.el.classList.remove('dragging');
       const L = layout.get(g.id);
       if (L) {
         L.x = parseFloat(g.el.style.left) + L.w / 2;
         L.y = parseFloat(g.el.style.top) + L.h / 2;
       }
-    } else if (!g.moved && g.id) onTap(g.id, g.hit);
+    } else if (!g.moved && g.id && !g.caught) onTap(g.id, g.hit);
   }
   root.addEventListener('pointerup', endPointer);
   root.addEventListener('pointercancel', endPointer);

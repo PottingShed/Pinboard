@@ -68,6 +68,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none; /* a finger held on a piece adds a note */
 }
 .wall.panning { cursor: grabbing; }
 /* The pointer: a little dot in the logo's colour (made in main.js). Text
@@ -128,6 +129,36 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .fix--tape-tr i { right: -30px; top: 0; transform: rotate(calc(42deg - var(--t))); }
 .fix--tape-bl i { left: -30px; bottom: 0; transform: rotate(calc(42deg + var(--t))); }
 .fix--tape-br i { right: -30px; bottom: 0; transform: rotate(calc(-42deg - var(--t))); }
+
+/* What a piece is, on its tape: plain for public work, and coloured, labelled
+   tape for the rest, so work in progress stands out before anyone shares a
+   screenshot. In the grid, where there's no tape, a strip sits in the corner. */
+[data-type="wip"] { --type-tape: rgba(253, 230, 25, 0.82); --type-label: "WIP"; }
+[data-type="inspo"] { --type-tape: rgba(18, 205, 255, 0.6); --type-label: "Inspo"; }
+[data-type="social"] { --type-tape: rgba(255, 22, 165, 0.5); --type-label: "Social"; }
+.pin > .fix i { background: var(--type-tape, var(--tape)); }
+.pin > .fix i::after,
+.tile::after {
+  content: var(--type-label, none);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(23, 23, 23, 0.78);
+}
+.pin > .fix i::after { position: absolute; inset: 0; display: grid; place-items: center; }
+.tile::after {
+  position: absolute;
+  top: 10px;
+  right: 6px;
+  z-index: 2;
+  padding: 6px 10px 5px;
+  background: var(--type-tape);
+  clip-path: polygon(0 0, 100% 0, 96% 25%, 100% 50%, 96% 75%, 100% 100%, 0 100%, 4% 75%, 0 50%, 4% 25%);
+  rotate: 4deg;
+  pointer-events: none;
+}
 
 /* Palette cards: the colours of a piece, like paint chips on the wall */
 .palette {
@@ -194,9 +225,98 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 .dot--dark { color: var(--paper); }
 .tile .dot { left: 10px; top: 10px; min-width: 30px; height: 30px; padding: 0 9px; font-size: 14px; }
+
+/* Sticky notes: a piece's comments, stuck on it. The newest is on top, the two
+   before it peeking out underneath, with a count. --x and --y are where its
+   middle is, as a share of the piece. They grow as you zoom out to stay
+   readable (--note-scale, wall.js), and fold down to the dot when you're far
+   out, on the TVs, or with Notes switched off. */
+.stack {
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  top: calc(var(--y) * 100%);
+  z-index: 3;
+  width: 150px;
+  translate: -50% -50%;
+  rotate: var(--tilt, 0deg);
+  scale: var(--note-scale, 1);
+  cursor: grab;
+}
+.note {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 150px;
+  margin: 0;
+  padding: 14px 14px 12px;
+  background-color: var(--c);
+  /* a little sheen where it's stuck down, a little shade where it lifts */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 18%), linear-gradient(0deg, rgba(23, 23, 23, 0.07), rgba(23, 23, 23, 0) 26%);
+  color: var(--ink);
+  box-shadow: 0 1px 1px rgba(23, 23, 23, 0.12), 0 12px 20px -12px rgba(23, 23, 23, 0.5);
+}
+.note p { margin: 0; font-size: 15px; line-height: 1.22; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.note__by,
+.note__hint { margin-top: auto; font-size: 9px; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.66; }
+/* Pinboard's own notes are signed with its wordmark */
+.note__mark { display: block; align-self: flex-start; height: 14px; margin-top: auto; pointer-events: none; }
+.stack--more::before,
+.stack--many::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  box-shadow: 0 1px 1px rgba(23, 23, 23, 0.12), 0 8px 14px -10px rgba(23, 23, 23, 0.4);
+}
+.stack--more::before { background: var(--c2); rotate: 5deg; translate: 5px 4px; }
+.stack--many::after { background: var(--c3); rotate: -4deg; translate: -5px 5px; }
+.stack__count {
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.stack.lifted { cursor: grabbing; scale: calc(var(--note-scale, 1) * 1.04); }
+.stack.lifted .note { box-shadow: 0 2px 2px rgba(23, 23, 23, 0.1), 0 26px 34px -16px rgba(23, 23, 23, 0.5); }
+
+/* A note being written: readable however far out you are, on top of everything */
+.stack.is-draft { z-index: 5; rotate: 0deg; scale: var(--draft-scale, 1); cursor: auto; user-select: text; -webkit-user-select: text; }
+.is-draft .note textarea,
+.is-draft .note input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+.is-draft .note textarea { flex: 1; min-height: 80px; font-size: 15px; line-height: 1.22; letter-spacing: -0.01em; resize: none; }
+.is-draft .note input { padding-bottom: 5px; border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); font-size: 16px; }
+.is-draft .note ::placeholder { color: inherit; opacity: 0.5; }
+
+/* The notes or the dot, never both */
+.pin > .dot { display: none; }
+.wall.far .pin > .dot, .tv .pin > .dot, .notes-off .pin > .dot { display: grid; }
+.wall.far .stack:not(.is-draft), .tv .stack, .notes-off .stack:not(.is-draft) { display: none; }
+
+/* In the grid a note sits small in the tile's corner; tap it to read them all */
+.tile .stack { left: 8px; top: auto; bottom: 8px; translate: none; rotate: -2deg; scale: 0.62; transform-origin: 0 100%; cursor: pointer; }
 /* The heart: a small clear lens in a piece's corner under the pointer, quiet
-   over any image. Point at it and it whitens; tap it to save to a board. */
-.heart {
+   over any image. Point at it and it whitens; tap it to save to a board.
+   Beside it, the same lens with a sticky note in it, for adding a note. */
+.heart,
+.jot {
   position: absolute;
   right: 18px;
   bottom: 18px;
@@ -216,17 +336,22 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   scale: 0.8;
   transition: opacity 0.3s var(--ease), scale 0.5s var(--spring), background-color 0.25s var(--ease), color 0.25s var(--ease);
 }
-.heart svg { width: 44%; height: 44%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(23, 23, 23, 0.45)); transition: scale 0.5s var(--spring-bouncy), fill 0.2s; }
-.heart:hover { background-color: rgba(255, 255, 255, 0.72); color: var(--ink); }
-.heart:hover svg { scale: 1.12; filter: none; }
+.jot { right: 80px; }
+.heart svg,
+.jot svg { width: 44%; height: 44%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(23, 23, 23, 0.45)); transition: scale 0.5s var(--spring-bouncy), fill 0.2s; }
+.heart:hover,
+.jot:hover { background-color: rgba(255, 255, 255, 0.72); color: var(--ink); }
+.heart:hover svg,
+.jot:hover svg { scale: 1.12; filter: none; }
 .heart.is-saved svg { fill: var(--accent); }
 @media (hover: hover) {
-  .pin:hover > .heart { opacity: 1; scale: 1; backdrop-filter: blur(3px) saturate(1.5) brightness(1.05); -webkit-backdrop-filter: blur(3px) saturate(1.5) brightness(1.05); }
-  .liquid .pin:hover > .heart { backdrop-filter: url(#glass-heart) saturate(1.5) brightness(1.05); }
-  .liquid .tile:hover > .heart { backdrop-filter: url(#glass-heart-tile) saturate(1.5) brightness(1.05); }
+  .pin:hover > :is(.heart, .jot) { opacity: 1; scale: 1; backdrop-filter: blur(3px) saturate(1.5) brightness(1.05); -webkit-backdrop-filter: blur(3px) saturate(1.5) brightness(1.05); }
+  .liquid .pin:hover > :is(.heart, .jot) { backdrop-filter: url(#glass-heart) saturate(1.5) brightness(1.05); }
+  .liquid .tile:hover > :is(.heart, .jot) { backdrop-filter: url(#glass-heart-tile) saturate(1.5) brightness(1.05); }
 }
-.tile .heart { right: 10px; bottom: 10px; width: 36px; height: 36px; }
-.tv .heart, .hand .heart, .panning .heart, .dragging > .heart { display: none; }
+.tile :is(.heart, .jot) { right: 10px; bottom: 10px; width: 36px; height: 36px; }
+.tile .jot { right: 52px; }
+.tv :is(.heart, .jot), .hand :is(.heart, .jot), .panning :is(.heart, .jot), .dragging > :is(.heart, .jot) { display: none; }
 /* Arriving, moving, leaving */
 .pending { visibility: hidden; }
 .dragging { cursor: grabbing; }
@@ -284,7 +409,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 }
 @media (prefers-reduced-motion: reduce) { .logo--hop .leaf { animation: none; } }
 
-/* The inspiration section's label, beside the logo; click it to go back */
+/* What you're looking at (one type, or a board), beside the logo; click it to go back */
 .section {
   position: fixed;
   top: 22px;
@@ -858,6 +983,30 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .drop small { font-size: 14px; color: var(--grey); }
 .drop.has-files .drop__hint { font-size: 14px; color: var(--grey); }
 .drop.has-files .drop__hint small { display: none; }
+/* On a phone, two big buttons instead: the camera (photo or video), or the
+   camera roll (as many as you like). What's picked shows below. */
+.pick { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .drop:not(.has-files) { display: none; }
+  .drop { min-height: 0; }
+  .drop__hint { display: none; }
+}
+.pick__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 104px;
+  border: 1.5px dashed rgba(23, 23, 23, 0.3);
+  border-radius: 8px;
+  font-size: 17px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.pick__btn svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.pick__btn:active { border-color: var(--ink); background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .drop__previews { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .drop__previews:empty { display: none; }
 .preview { position: relative; width: 104px; height: 104px; background: #E3E3E3; }
@@ -1064,7 +1213,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 .focus__palette button:last-child { border-radius: 0 999px 999px 0; }
 .focus__palette button:hover,
 .focus__palette button:focus-visible { transform: scaleY(1.7); outline: none; }
-.focus__visibility { display: flex; align-items: center; gap: 12px; }
+.focus__type { display: flex; align-items: center; gap: 12px; }
 .focus__seg { display: inline-flex; padding: 3px; border: 1px solid rgba(242, 242, 242, 0.2); border-radius: 999px; }
 .focus__seg button {
   padding: 6px 14px;
@@ -1076,7 +1225,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   cursor: pointer;
 }
 .focus__seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
-.focus__visibility span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey); }
+.focus__type span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey); }
 .focus__notes { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .focus__notes:empty { display: none; }
 .focus__notes li {
@@ -1090,7 +1239,6 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
   line-height: 1.2;
 }
 .focus__notes li { position: relative; padding-right: 40px; }
-.focus__notes li.is-dark { color: var(--paper); }
 .focus__unnote {
   position: absolute;
   top: 8px;

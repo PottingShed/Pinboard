@@ -6,16 +6,18 @@
 
 export { Hub } from './hub.js';
 
-// Each comment gets one of the brand colours; it colours the dot on the piece.
-const COMMENT_COLOURS = ['#FDE619', '#CEFF00', '#01FECD', '#12CDFF', '#245FFF', '#FF16A5', '#FE1658', '#FF840A', '#FFADA2'];
+// Each note is one of the brand colours (with black text); it colours the dot on the piece too.
+const COMMENT_COLOURS = ['#FDE619', '#CEFF00', '#69FF46', '#01FECD', '#12CDFF', '#245FFF', '#FF16A5', '#FE1658', '#FF840A', '#FFADA2'];
 const COMMENT_MAX = 100;
 const TITLE_MAX = 80;
 const DESCRIPTION_MAX = 400;
 const NAME_MAX = 40;
 const BOARD_NAME_MAX = 60;
-// studio: pinned by the team; case-study and archive: imported from the website;
-// inspiration: work that isn't ours, kept in its own section.
-const ORIGINS = ['studio', 'inspiration', 'case-study', 'archive'];
+// What a piece is, and so who it's for. public and social show on the TVs;
+// wip (work in progress) is for the studio only; inspo is work we didn't make.
+const TYPES = ['public', 'wip', 'inspo', 'social'];
+// studio: pinned by the team; case-study and archive: imported from the website.
+const ORIGINS = ['studio', 'case-study', 'archive'];
 const FROM_WEBSITE = ['case-study', 'archive'];
 const UPLOAD_TYPES = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif',
@@ -71,7 +73,7 @@ function cleanColors(colors) {
 // ---------------------------------------------------------------- database
 
 const COLUMNS = ['id', 'kind', 'origin', 'parent_id', 'src', 'thumb', 'nat_w', 'nat_h', 'size', 'rot', 'fix', 'fix_color',
-  'title', 'description', 'source', 'text', 'color', 'colors', 'author', 'studio', 'private', 'created_at'];
+  'title', 'description', 'source', 'text', 'color', 'colors', 'author', 'studio', 'type', 'ax', 'ay', 'created_at'];
 
 // D1 builds the JSON for the whole wall itself, so the Worker never has to
 // parse hundreds of rows (free Workers get 10ms of CPU per request).
@@ -82,6 +84,7 @@ async function getPin(env, id) {
   const row = await env.DB.prepare('SELECT * FROM pins WHERE id = ? AND deleted_at IS NULL').bind(id).first();
   if (!row) return null;
   delete row.deleted_at;
+  delete row.private; // replaced by type
   return { ...row, colors: row.colors ? JSON.parse(row.colors) : null };
 }
 
@@ -104,6 +107,24 @@ async function boardChanged(env, ctx, id, status = 200) {
 
 const fileExists = async (env, name) => FILE_RE.test(name || '') && !!(await env.BUCKET.head(name));
 
+// A piece's type. Pages opened before there were types send private and
+// origin instead; anything that says neither (like the website import) is public.
+function typeOf(body) {
+  if (TYPES.includes(body.type)) return body.type;
+  if (body.origin === 'inspiration') return 'inspo';
+  if (typeof body.private === 'boolean') return body.private ? 'wip' : 'public';
+  return null;
+}
+
+// Where a sticky note sits on its piece: its middle, as a share of the
+// piece's width and height.
+function place(body) {
+  const ok = (v) => typeof v === 'number' && Number.isFinite(v);
+  if (!ok(body.ax) || !ok(body.ay)) return null;
+  const share = (v) => Math.round(Math.min(1, Math.max(0, v)) * 1000) / 1000;
+  return { ax: share(body.ax), ay: share(body.ay) };
+}
+
 async function createPin(body, env) {
   const kind = body.kind;
   const origin = ORIGINS.includes(body.origin) ? body.origin : 'studio';
@@ -112,7 +133,7 @@ async function createPin(body, env) {
   const base = {
     id: newId(), kind, origin, parent_id: null, src: null, thumb: null, nat_w: null, nat_h: null, size: null,
     rot: 0, fix: null, fix_color: null, title: null, text: null, color: null, colors: cleanColors(body.colors),
-    private: 0,
+    type: 'public', ax: null, ay: null,
     author: clean(body.author, NAME_MAX) || null,
     studio: studiosOf(env).includes(body.studio) ? body.studio : null,
     created_at: when,
@@ -120,6 +141,7 @@ async function createPin(body, env) {
 
   if (kind === 'image' || kind === 'video') {
     if (!(await fileExists(env, body.src))) throw new HttpError(400, 'Upload missing');
+    const type = typeOf(body) || 'public';
     return {
       ...base,
       src: body.src, thumb: (await fileExists(env, body.thumb)) ? body.thumb : null,
@@ -128,8 +150,8 @@ async function createPin(body, env) {
       size: ['s', 'm', 'l'].includes(body.size) ? body.size : 'm',
       title: clean(body.title, TITLE_MAX) || null,
       description: cleanText(body.description, DESCRIPTION_MAX) || null,
-      source: origin === 'inspiration' ? clean(body.source, 300) || null : null,
-      private: body.private ? 1 : 0, // studio only: never on the TVs
+      source: type === 'inspo' ? clean(body.source, 300) || null : null,
+      type,
     };
   }
 
@@ -140,7 +162,7 @@ async function createPin(body, env) {
     const parent = await env.DB.prepare('SELECT kind FROM pins WHERE id = ? AND deleted_at IS NULL').bind(body.parent_id || '').first();
     if (!parent || parent.kind === 'comment') throw new HttpError(404, 'That piece has gone');
     const color = COMMENT_COLOURS.includes(body.color) ? body.color : COMMENT_COLOURS[0];
-    return { ...base, text, color, parent_id: body.parent_id, colors: null };
+    return { ...base, text, color, parent_id: body.parent_id, colors: null, ...place(body) };
   }
 
   throw new HttpError(400, 'Unknown kind');
@@ -341,16 +363,24 @@ async function api(request, env, ctx, url) {
 
   const m = /^\/api\/pins\/([a-z0-9]+)$/.exec(pathname);
 
-  // Changing a piece afterwards: public or private, and its description.
+  // Changing something afterwards: a piece's type, description or source, or
+  // where a sticky note sits on its piece.
   if (m && method === 'PATCH') {
     const body = await readJSON(request);
+    const note = place(body);
     const sets = [];
     const values = [];
-    if (typeof body.private === 'boolean') { sets.push('private = ?'); values.push(body.private ? 1 : 0); }
-    if (typeof body.description === 'string') { sets.push('description = ?'); values.push(cleanText(body.description, DESCRIPTION_MAX) || null); }
-    if (typeof body.source === 'string') { sets.push('source = ?'); values.push(clean(body.source, 300) || null); }
+    if (note) {
+      sets.push('ax = ?', 'ay = ?');
+      values.push(note.ax, note.ay);
+    } else {
+      const type = typeOf(body);
+      if (type) { sets.push('type = ?'); values.push(type); }
+      if (typeof body.description === 'string') { sets.push('description = ?'); values.push(cleanText(body.description, DESCRIPTION_MAX) || null); }
+      if (typeof body.source === 'string') { sets.push('source = ?'); values.push(clean(body.source, 300) || null); }
+    }
     if (!sets.length) throw new HttpError(400, 'Nothing to change');
-    const { meta } = await env.DB.prepare(`UPDATE pins SET ${sets.join(', ')} WHERE id = ? AND deleted_at IS NULL AND kind != 'comment'`)
+    const { meta } = await env.DB.prepare(`UPDATE pins SET ${sets.join(', ')} WHERE id = ? AND deleted_at IS NULL AND kind ${note ? '=' : '!='} 'comment'`)
       .bind(...values, m[1]).run();
     if (!meta.changes) throw new HttpError(404, 'Not found');
     const saved = await getPin(env, m[1]);

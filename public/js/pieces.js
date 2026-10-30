@@ -1,5 +1,6 @@
 // Building the things that go on the wall: pieces of work, palette cards, the
-// dot that says a piece has comments, and the heart for saving it to a board.
+// sticky notes on them (and the dot they fold down to), and the buttons for
+// adding a note and saving to a board.
 
 import { h, fileUrl, hash, fmtDate } from './util.js';
 import { childrenOf, boardsWith } from './store.js';
@@ -17,8 +18,10 @@ function tapeFor(id) {
 
 // onColours(p, imageElement) is called once an image without colours has loaded.
 // defer leaves the image unloaded until wake() is called, for walls bigger than the screen.
+// What a piece is shows on its tape (data-type, styles.css): plain for public
+// work, coloured and labelled for the rest.
 export function buildPiece(p, w, hgt, { fixings = true, lazy = false, defer = false, onColours } = {}) {
-  const el = h('div', { class: `pin pin--${p.kind}`, 'data-id': p.id, style: `width:${w}px;height:${hgt}px` });
+  const el = h('div', { class: `pin pin--${p.kind}`, 'data-id': p.id, 'data-type': p.type, style: `width:${w}px;height:${hgt}px` });
   const paper = h('div', { class: 'pin__paper' });
 
   if (p.kind === 'image') {
@@ -55,7 +58,9 @@ export function buildPiece(p, w, hgt, { fixings = true, lazy = false, defer = fa
   if (strips) el.append(tape(p.id, ...strips));
   const dot = commentDot(p.id);
   if (dot) el.append(dot);
-  el.append(heart(p.id));
+  const notes = noteStack(p.id);
+  if (notes) el.append(notes);
+  el.append(jot(), heart(p.id));
   return el;
 }
 
@@ -67,9 +72,21 @@ function heart(id) {
   b.innerHTML = HEART;
   return b;
 }
+
+// Beside it, a sticky note: tap it to stick a note on the piece.
+function jot() {
+  const b = h('button', { type: 'button', class: 'jot', tabindex: '-1', 'aria-label': 'Add a note', title: 'Add a note (N)' });
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14v9.8l-5.2 5.2H5Z"/><path d="M19 14.3h-5.2v5.2"/></svg>';
+  return b;
+}
 export function refreshHeart(id) {
   const saved = boardsWith(id).length > 0;
   for (const b of document.querySelectorAll(`[data-id="${CSS.escape(id)}"] > .heart`)) b.classList.toggle('is-saved', saved);
+}
+
+// A piece changed type: change its tape, wherever it's up.
+export function retape(p) {
+  for (const el of document.querySelectorAll(`[data-id="${CSS.escape(p.id)}"]`)) el.dataset.type = p.type;
 }
 
 function tape(id, kind, n) {
@@ -145,9 +162,51 @@ export function commentDot(id) {
   }, String(notes.length));
 }
 
-// Redraw a piece's dot after a comment comes or goes.
+// Comments are sticky notes on their piece, so they go wherever it goes. The
+// newest sits on top, with the ones before it peeking out underneath and a
+// count. Each note remembers where it was stuck (ax, ay: its middle, as a
+// share of the piece's width and height), and the stack sits where the newest
+// one that was stuck anywhere in particular went. Otherwise it's on a corner
+// the tape isn't. Zoomed right out, and on the TVs, they fold down to the dot
+// (styles.css).
+export function notePlace(id, notes = childrenOf(id)) {
+  const stuck = notes.findLast((c) => c.ax != null && c.ay != null);
+  if (stuck) return { ax: stuck.ax, ay: stuck.ay };
+  return tapeFor(id)[0] === 'tape-tr' ? { ax: 0.12, ay: 0.86 } : { ax: 0.88, ay: 0.14 };
+}
+
+export const noteTilt = (id) => (hash(id) % 7) - 3;
+
+// Who wrote it. Pinboard's own notes are signed with its wordmark, made from
+// the Potting Shed logo's letters (scripts/wordmark.mjs); it's used nowhere else.
+const signature = (name) => (/^pinboard$/i.test(name || '')
+  ? h('img', { class: 'note__mark', src: 'brand/pinboard.svg', alt: 'Pinboard', draggable: 'false' })
+  : h('span', { class: 'note__by' }, name || ''));
+
+export function noteStack(id) {
+  const notes = childrenOf(id);
+  if (!notes.length) return null;
+  const top = notes.at(-1);
+  const { ax, ay } = notePlace(id, notes);
+  const [c2, c3] = notes.slice(-3, -1).reverse().map((c) => c.color);
+  return h('div', {
+    class: `stack${notes.length > 1 ? ' stack--more' : ''}${notes.length > 2 ? ' stack--many' : ''}`,
+    'data-note': top.id,
+    style: `--x:${ax};--y:${ay};--tilt:${noteTilt(top.id)}deg;--c:${top.color};--c2:${c2 || top.color};--c3:${c3 || c2 || top.color}`,
+  }, [
+    h('div', { class: 'note' }, [h('p', {}, top.text), signature(top.author)]),
+    notes.length > 1 ? h('span', { class: 'stack__count', 'aria-label': `${notes.length} notes` }, String(notes.length)) : null,
+  ]);
+}
+
+// Redraw a piece's notes and dot after a comment comes, goes or moves.
 // how: 'quiet', 'arrive' (pops in) or 'pending' (hidden until the TV gets there)
 export function refreshDot(el, id, how = 'quiet') {
+  el.querySelector(':scope > .stack:not(.is-draft)')?.remove();
+  const stack = noteStack(id);
+  const buttons = el.querySelector(':scope > .jot');
+  if (stack && buttons) buttons.before(stack);
+  else if (stack) el.append(stack);
   el.querySelector(':scope > .dot')?.remove();
   const dot = commentDot(id);
   if (!dot) return null;
@@ -165,7 +224,7 @@ export function popDot(dot) {
 // Title, who and when, and the latest comment if there is one.
 export function describe(p) {
   const from = p.origin === 'case-study' ? 'Case study' : p.origin === 'archive' ? 'From the archive' : null;
-  const who = from || [p.origin === 'inspiration' ? 'Inspiration' : null, p.author, p.studio].filter(Boolean).join(' · ');
+  const who = from || [p.type === 'inspo' ? 'Inspo' : null, p.author, p.studio].filter(Boolean).join(' · ');
   const last = childrenOf(p.id).at(-1);
   return {
     title: p.title || 'Untitled',

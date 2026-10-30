@@ -221,7 +221,7 @@ export function createGrid(root, { onTap, onColours, onInteract }) {
     }
   }
 
-  // A comment came or went: redraw the dot on every copy of its piece.
+  // A comment came, went or moved: redraw the notes on every copy of its piece.
   function notes(id, how) {
     return tilesOf(id).map((t) => refreshDot(t, id, how))[0] || null;
   }

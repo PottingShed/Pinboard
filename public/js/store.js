@@ -8,10 +8,20 @@ const saved = (key) => params.get(key) ?? (() => { try { return localStorage.get
 const oneOf = (v, allowed, fallback) => (allowed.includes(v) ? v : fallback);
 const hexOrNull = (v) => (/^#?[0-9a-f]{6}$/i.test(v || '') ? `#${v.replace('#', '').toLowerCase()}` : null);
 
+// What a piece is, and so who it's for. Public and Social show on the TVs;
+// nothing else ever does.
+export const TYPES = {
+  wip: { name: 'Work in progress', short: 'WIP', note: 'Studio only. Never on the TVs.' },
+  public: { name: 'Public', note: 'Our work, fine for anyone to see. Shows on the studio TVs.' },
+  inspo: { name: 'Inspo', note: 'Work we love that we didn’t make. Not on the TVs.' },
+  social: { name: 'Social', note: 'Life at Potting Shed. Shows on the studio TVs.' },
+};
+const ON_TVS = new Set(['public', 'social']);
+
 export const state = {
   config: {
     studios: ['Guernsey', 'Jersey'],
-    commentColours: ['#FDE619', '#CEFF00', '#01FECD', '#12CDFF', '#245FFF', '#FF16A5', '#FE1658', '#FF840A', '#FFADA2'],
+    commentColours: ['#FDE619', '#CEFF00', '#69FF46', '#01FECD', '#12CDFF', '#245FFF', '#FF16A5', '#FE1658', '#FF840A', '#FFADA2'],
     commentMax: 100, titleMax: 80, maxUploadMB: 250,
   },
   pins: new Map(),
@@ -21,10 +31,10 @@ export const state = {
   tv: params.has('tv'),
   view: oneOf(saved('view'), ['wall', 'grid'], 'wall'),
   order: oneOf(saved('order'), ['new', 'mix', 'random'], 'new'), // newest first: new work sets the energy
-  // all: all our work, public and private (the default); public: only what's fine
-  // for the TVs and clients; inspiration: work that isn't ours, in its own section
-  show: oneOf(saved('show'), ['all', 'public', 'inspiration'], 'all'),
+  // all: everything (the default), or just one type
+  show: oneOf(saved('show') === 'inspiration' ? 'inspo' : saved('show'), ['all', ...Object.keys(TYPES)], 'all'),
   video: saved('video') !== 'off', // some people find moving work on screen distracting
+  notes: saved('notes') !== 'off', // sticky notes on the work, or just their dots
   hand: false, // space held: drag moves round the work instead of picking it up
   // Sort by closeness to this colour, when set. Only for this visit: next time
   // the wall opens newest first again (unless the address asks for a colour).
@@ -58,20 +68,16 @@ export const boardList = () => [...state.boards.values()].sort((a, b) => boardAc
 export const pieces = () => [...state.pins.values()].filter((p) => !p.parent_id);
 export const childrenOf = (id) => [...state.pins.values()].filter((p) => p.parent_id === id).sort((a, b) => a.created_at - b.created_at);
 export const fromWebsite = (p) => p.origin === 'case-study' || p.origin === 'archive';
-export const isInspiration = (p) => p.origin === 'inspiration';
+export const ourWork = (p) => p.type === 'public' || p.type === 'wip';
+export const onTvs = (p) => ON_TVS.has(p.type);
 
-// Private work is for the studio only: the TVs never show it.
-export const onTvs = (p) => !p.private;
-
-export function matches(p) {
+// Whether a piece belongs in what's being looked at, leaving video aside.
+export function inView(p) {
   if (state.tv && !onTvs(p)) return false;
-  if (!state.video && p.kind === 'video') return false;
-  if (state.board) return !!state.boards.get(state.board)?.ids.has(p.id); // a board holds our work and inspiration alike
-  if (state.show === 'inspiration') return isInspiration(p);
-  if (isInspiration(p)) return false;
-  if (state.show === 'public' && p.private) return false;
-  return true;
+  if (state.board) return !!state.boards.get(state.board)?.ids.has(p.id); // a board can hold any type
+  return state.show === 'all' || p.type === state.show;
 }
+export const matches = (p) => (state.video || p.kind !== 'video') && inView(p);
 
 // New studio work first (it lands at the heart of the wall), with older pins
 // and website projects woven through. Different every time.

@@ -8,7 +8,10 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#F2F2F2">
   <link rel="icon" href="brand/leaf.png">
-  <link rel="apple-touch-icon" href="brand/leaf.png">
+  <!-- On a phone's home screen it's an app: its own icon, its own window. -->
+  <link rel="apple-touch-icon" href="brand/app-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Pinboard">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -86,11 +89,18 @@
     <div class="pop__seg" data-group="show">
       <button type="button" data-value="all">All</button>
       <button type="button" data-value="public">Public</button>
-      <button type="button" data-value="inspiration">Inspiration</button>
+      <button type="button" data-value="wip" title="Work in progress">WIP</button>
+      <button type="button" data-value="inspo">Inspo</button>
+      <button type="button" data-value="social">Social</button>
     </div>
     <label class="pop__switch">
       <span>Video<small>Turn off if moving work on screen gets distracting</small></span>
       <input type="checkbox" id="video-switch" role="switch" checked>
+      <i aria-hidden="true"></i>
+    </label>
+    <label class="pop__switch">
+      <span>Notes<small>Sticky notes on the work. Off, they fold down to a dot</small></span>
+      <input type="checkbox" id="notes-switch" role="switch" checked>
       <i aria-hidden="true"></i>
     </label>
     <p class="pop__hint prototype-only">This is the prototype. What you add is saved in this browser only, until Pinboard goes live.</p>
@@ -123,16 +133,32 @@
         <h2 id="media-heading">Add <em>media</em></h2>
         <button class="x" type="button" data-close aria-label="Close">&times;</button>
       </header>
+      <!-- On a phone: the camera, or the camera roll -->
+      <div class="pick">
+        <label class="pick__btn">
+          <input type="file" class="pick__input" accept="image/*,video/*" capture="environment" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.2l1.6-2.2h5.4l1.6 2.2h2.2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/><circle cx="12" cy="13" r="3.6"/></svg>
+          <span>Camera</span>
+        </label>
+        <label class="pick__btn">
+          <input type="file" class="pick__input" accept="image/*,video/mp4,video/webm,video/quicktime,.mov,.m4v" multiple hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="13" height="13" rx="1.5"/><path d="M7.5 3.5h11a2 2 0 0 1 2 2v11"/><path d="m3.5 15.5 4-4 3.5 3.5 2-2 3.5 3.5"/></svg>
+          <span>Camera roll</span>
+        </label>
+      </div>
       <label class="drop" id="drop" tabindex="0" autofocus>
         <input type="file" id="media-input" accept="image/*,video/mp4,video/webm,video/quicktime,.mov,.m4v" multiple hidden>
         <span class="drop__hint">Drop images or video here, or <u>browse</u>.<br><small>You can paste, or drag straight onto the wall too.</small></span>
         <span class="drop__previews" id="previews"></span>
       </label>
-      <fieldset class="field chips" id="media-kind">
+      <fieldset class="field chips" id="media-type">
         <legend>What is it</legend>
-        <label><input type="radio" name="origin" value="studio" checked><span>Our work</span></label>
-        <label><input type="radio" name="origin" value="inspiration"><span>Inspiration</span></label>
+        <label><input type="radio" name="type" value="wip" checked><span>Work in progress</span></label>
+        <label><input type="radio" name="type" value="public"><span>Public</span></label>
+        <label><input type="radio" name="type" value="inspo"><span>Inspo</span></label>
+        <label><input type="radio" name="type" value="social"><span>Social</span></label>
       </fieldset>
+      <p class="field__note" id="type-note"></p>
       <label class="field" id="media-source-field" hidden>
         <span>Source <small>who made it, or a link</small></span>
         <input type="text" id="media-source" maxlength="300" placeholder="e.g. Studio Dumbar, or https://…" autocomplete="off">
@@ -145,20 +171,12 @@
         <span>Description <small>optional</small></span>
         <textarea id="media-description" maxlength="400" rows="2" placeholder="What it is, what it’s for, what feedback would help"></textarea>
       </label>
-      <div class="who-row">
-        <fieldset class="field chips">
-          <legend>Size on the wall</legend>
-          <label><input type="radio" name="size" value="s"><span>Small</span></label>
-          <label><input type="radio" name="size" value="m" checked><span>Medium</span></label>
-          <label><input type="radio" name="size" value="l"><span>Large</span></label>
-        </fieldset>
-        <fieldset class="field chips">
-          <legend>Who can see it</legend>
-          <label><input type="radio" name="visibility" value="private" checked><span>Private</span></label>
-          <label><input type="radio" name="visibility" value="public"><span>Public</span></label>
-        </fieldset>
-      </div>
-      <p class="field__note" id="visibility-note"></p>
+      <fieldset class="field chips">
+        <legend>Size on the wall</legend>
+        <label><input type="radio" name="size" value="s"><span>Small</span></label>
+        <label><input type="radio" name="size" value="m" checked><span>Medium</span></label>
+        <label><input type="radio" name="size" value="l"><span>Large</span></label>
+      </fieldset>
       <div class="who-row">
         <label class="field">
           <span>Your name</span>
@@ -247,16 +265,18 @@
         <p class="focus__on" id="focus-on"></p>
       </div>
       <div class="focus__palette" id="focus-palette" aria-label="Colours in this piece"></div>
-      <div class="focus__visibility" id="focus-visibility">
-        <div class="focus__seg" role="group" aria-label="Who can see it">
-          <button type="button" data-private="1">Private</button>
-          <button type="button" data-private="0">Public</button>
+      <div class="focus__type" id="focus-type">
+        <div class="focus__seg" role="group" aria-label="What it is">
+          <button type="button" data-type="wip" title="Work in progress">WIP</button>
+          <button type="button" data-type="public">Public</button>
+          <button type="button" data-type="inspo">Inspo</button>
+          <button type="button" data-type="social">Social</button>
         </div>
-        <span id="focus-visibility-note"></span>
+        <span id="focus-type-note"></span>
       </div>
       <ul class="focus__notes" id="focus-notes"></ul>
       <form class="comment" id="comment-form" novalidate>
-        <textarea id="comment-text" maxlength="100" rows="2" placeholder="Leave a comment&hellip;" aria-label="Comment"></textarea>
+        <textarea id="comment-text" maxlength="100" rows="2" placeholder="Add a note&hellip;" aria-label="Note"></textarea>
         <div class="comment__row">
           <input type="text" id="comment-name" maxlength="40" placeholder="Your name" autocomplete="given-name" aria-label="Your name">
           <span class="comment__count" id="comment-count">0 / 100</span>
