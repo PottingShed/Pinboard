@@ -178,7 +178,7 @@ export function notePlace(id, notes = childrenOf(id)) {
 export const noteTilt = (id) => (hash(id) % 7) - 3;
 
 // Who wrote it. Pinboard's own notes are signed with its wordmark, made from
-// the Potting Shed logo's letters (scripts/wordmark.mjs); it's used nowhere else.
+// the Potting Shed logo's letters (scripts/wordmark.mjs).
 const signature = (name) => (/^pinboard$/i.test(name || '')
   ? h('img', { class: 'note__mark', src: 'brand/pinboard.svg', alt: 'Pinboard', draggable: 'false' })
   : h('span', { class: 'note__by' }, name || ''));

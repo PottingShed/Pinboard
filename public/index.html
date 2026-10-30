@@ -6,6 +6,13 @@
   <title>Pinboard</title>
   <meta name="description" content="Potting Shed's studio wall: work in progress, ideas and inspiration.">
   <meta name="robots" content="noindex, nofollow">
+  <!-- What a link to Pinboard shows in Slack, iMessage, WhatsApp: no work, just the brand. -->
+  <meta property="og:title" content="Pinboard">
+  <meta property="og:description" content="Potting Shed’s studio wall.">
+  <meta property="og:image" content="https://pinboard.pottingshed.com/brand/share.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#F2F2F2">
   <link rel="icon" href="brand/leaf.png">
   <!-- On a phone's home screen it's an app: its own icon, its own window. Each
@@ -29,8 +36,20 @@
   </script>
   <meta name="apple-mobile-web-app-title" content="Pinboard">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // Just signed in: the way-in page's colour, to lift away like a curtain
+    // once the wall's drawn (.curtain in styles.css). Read once, then gone.
+    (() => {
+      const m = document.cookie.match(/(?:^|;\s*)pbw=([0-9A-Fa-f]{6})/);
+      if (!m) return;
+      document.cookie = 'pbw=; Path=/; Max-Age=0';
+      document.documentElement.classList.add('curtained');
+      document.documentElement.style.setProperty('--curtain', `#${m[1]}`);
+    })();
+  </script>
 </head>
 <body>
+  <div class="curtain" aria-hidden="true"><i class="curtain__leaf"></i><img src="brand/pinboard-white.svg" alt=""></div>
   <main class="wall" id="wall" aria-label="The wall"></main>
   <main class="grid" id="grid" aria-label="The grid" hidden></main>
 
@@ -123,6 +142,10 @@
     <div class="pop__rows">
       <button class="pop__row" type="button" id="shuffle-btn">Shuffle<small>Rearrange the wall</small></button>
       <button class="pop__row" type="button" id="home-btn">Make it your homepage<small>See the studio every time you open a browser</small></button>
+    </div>
+    <div class="pop__rows" id="account-rows" hidden>
+      <button class="pop__row" type="button" id="tvlink-btn">Copy a TV link<small id="tvlink-note">Opens TV mode on any screen, no signing in</small></button>
+      <button class="pop__row" type="button" id="signout-btn">Sign out<small id="signed-in-as"></small></button>
     </div>
   </div>
 

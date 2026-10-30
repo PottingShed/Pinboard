@@ -1,17 +1,15 @@
-// Builds the home-screen icons: the "ps." in white on each brand colour. The
-// ps. is always white, whatever the colour. Every phone is given one of these
-// at random the first time it opens Pinboard (index.html), so the icons round
-// the studio come out in different colours.
+// Builds the home-screen icons: Pinboard's pb. monogram (scripts/monogram.mjs)
+// in white on each brand colour. Always white, whatever the colour
+// (pottingshed.com's off-white, #F2F2F2). Every phone is given one of these at
+// random the first time it opens Pinboard (index.html), so the icons round the
+// studio come out in different colours.
 //
-// The ps. is the one cut out of Potting Shed's favicon (public/brand/leaf.svg, "PS
-// Favicon Lime-01.svg" from the brand folder): the p and s run into each other,
-// and the p's counter and the s's lower curve are separate shapes laid back in.
-// It's as big as on the studio's own social profile pictures (64.7% of the
-// width), and centred by eye rather than by its box: the middle of the p's
-// counter sits dead on the icon's centre line, and the whole thing sits a
-// touch right, because the p's tail on the left weighs more than the dot on
-// the right. Halfway between its box's middle and its centre of weight goes
-// in the middle.
+// It's as wide as the ps. on the studio's own social profile pictures (64.7%
+// of the icon), and centred by eye rather than by its box: its counters (the
+// p's and the b's) sit dead on the icon's centre line, and the whole thing
+// sits a touch right, because the stems on the left weigh more than the dot on
+// the right. Halfway between its box's middle and its centre of weight goes in
+// the middle.
 //
 //   node scripts/app-icon.mjs
 //
@@ -24,35 +22,24 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { monogram } from './monogram.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(HERE, '..', 'public', 'brand', 'icons');
 // The brand colours (as in main.js). If these change, change the list in index.html too.
 const COLOURS = ['#245FFF', '#FE1658', '#FF16A5', '#FF840A', '#FDE619', '#CEFF00', '#69FF46', '#01FECD', '#12CDFF', '#FFADA2'];
-
-// The favicon has three paths: the p's counter, the s's lower curve, and the
-// leaf with the ps. and the dot cut out of it. Keep the ps. and the dot, and
-// cut the other two back out of them.
-const favicon = fs.readFileSync(path.resolve(HERE, '..', 'public', 'brand', 'leaf.svg'), 'utf8');
-const [counter, curve, leaf] = [...favicon.matchAll(/\sd="([^"]+)"/g)].map((m) => m[1].replace(/\s+/g, ' ').trim());
-const [, ps, dot] = leaf.split(/(?=M)/).map((d) => d.trim());
-
-// In the favicon's units (measured): where the ps. and its dot reach across,
-// the middle of the p's counter, and the ps.'s centre of weight across.
-const box = { x: 26.70884, w: 56.82603 };
-const counterY = 47.2234;
-const weightX = 50.37;
-const across = (box.x + box.w / 2 + weightX) / 2;
 const WIDTH = 1725 / 2667; // as on the profile pictures (2667px square)
 
+const m = monogram();
+const across = (m.x0 + m.w / 2 + m.weightX) / 2;
 const size = 1024;
-const k = (WIDTH * size) / box.w;
+const k = (WIDTH * size) / m.w;
 const tx = size / 2 - across * k;
-const ty = size / 2 - counterY * k;
+const ty = size / 2 - m.counterY * k;
 
 const icon = (colour) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
 <rect width="${size}" height="${size}" fill="${colour}"/>
-<path fill="#fff" fill-rule="evenodd" transform="translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${k.toFixed(5)})" d="${ps} ${counter} ${curve} ${dot}"/>
+<g transform="translate(${tx.toFixed(3)} ${ty.toFixed(3)}) scale(${k.toFixed(5)})">${m.shapes('#F2F2F2')}</g>
 </svg>
 `;
 

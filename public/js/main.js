@@ -13,7 +13,9 @@ import { isLocalPin } from './local.js';
 import './glass.js';
 
 // In the prototype, only what you've added in this browser can be changed or taken down.
-const yours = (p) => !PREVIEW || isLocalPin(p);
+// Signed in, what's yours is what you pinned (and anything from before there
+// were accounts, which is anyone's). Without accounts, everything is anyone's.
+const yours = (p) => (PREVIEW ? isLocalPin(p) : !state.me?.id || !p.user_id || p.user_id === state.me.id);
 
 // One brand colour at a time, for the logo and anything that needs a highlight.
 // Royal blue is the only one dark enough to need light text on it.
@@ -507,9 +509,46 @@ function saveColours(p, img) {
 // ------------------------------------------------------------------ who's pinning
 
 function rememberMe(name) {
+  if (state.accounts) return; // signed in, Pinboard already knows
   state.me = { name };
   try { localStorage.setItem('pb.me', JSON.stringify(state.me)); } catch {}
 }
+
+// ------------------------------------------------------------------ who's signed in
+
+// Signed in, nobody types their name: Pinboard knows it. The ⌄ menu says who
+// you are, signs you out, and copies a TV link (TV mode on any screen, with
+// nobody signing in there).
+function showAccount() {
+  $('#account-rows').hidden = !state.accounts;
+  $('#signed-in-as').textContent = state.me?.full ? `Signed in as ${state.me.full}` : '';
+  $('#media-name').closest('.field').hidden = !!state.accounts;
+  $('#comment-name').hidden = !!state.accounts;
+}
+$('#signout-btn').addEventListener('click', () => { location.href = '/auth/signout'; });
+
+// Just signed in, the way-in page is still showing, as a curtain: once the
+// wall's drawn, it lifts away to show it.
+function liftCurtain() {
+  const curtain = $('.curtain');
+  if (!document.documentElement.classList.contains('curtained')) return curtain.remove();
+  const done = () => { curtain.remove(); document.documentElement.classList.remove('curtained'); };
+  setTimeout(() => {
+    curtain.classList.add('up');
+    curtain.addEventListener('transitionend', (e) => { if (e.target === curtain) done(); });
+    setTimeout(done, 2500); // in case it never gets to run (a hidden tab)
+  }, 350);
+}
+$('#tvlink-btn').addEventListener('click', async () => {
+  try {
+    const { path } = await api('/api/tv-link');
+    await navigator.clipboard.writeText(location.origin + path);
+    $('#tvlink-note').textContent = 'Copied. Open it once on each TV';
+    setTimeout(() => { $('#tvlink-note').textContent = 'Opens TV mode on any screen, no signing in'; }, 3000);
+  } catch (err) {
+    toast(err.message);
+  }
+});
 
 // ------------------------------------------------------------------ add media
 
@@ -1452,6 +1491,11 @@ async function boot() {
   try {
     const [config, { pins }] = await Promise.all([api('/api/config'), api('/api/pins'), loadBoards().catch(() => {})]);
     state.config = config;
+    if (config.me) {
+      state.accounts = true;
+      state.me = { id: config.me.id, name: config.me.first || config.me.name, full: config.me.name, email: config.me.email };
+    }
+    showAccount();
     for (const p of pins) state.pins.set(p.id, p);
   } catch (err) {
     toast(err.message);
@@ -1470,6 +1514,7 @@ async function boot() {
   setInterval(() => { if (state.tv) location.reload(); }, 6 * 3600_000);
 
   if (state.tv) setTv(true, false); // a TV starting up just shows the logo in the middle
+  liftCurtain();
 }
 
 boot();

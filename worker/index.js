@@ -1,8 +1,9 @@
 // Pinboard: Potting Shed's shared studio wall, on Cloudflare.
 // The page itself is served straight from public/; this Worker handles
-// everything else: the API (D1), images and video (R2), uploads, the optional
-// passcode, and live updates (via the Hub Durable Object).
+// everything else: the API (D1), images and video (R2), uploads, signing in
+// (auth.js), and live updates (via the Hub Durable Object).
 
+import { route, who, userOf, withAccounts, gate, nextOf, tvLink } from './auth.js';
 
 export { Hub } from './hub.js';
 
@@ -82,12 +83,16 @@ function cleanColors(colors) {
 // ---------------------------------------------------------------- database
 
 const COLUMNS = ['id', 'kind', 'origin', 'parent_id', 'src', 'thumb', 'nat_w', 'nat_h', 'size', 'rot', 'fix', 'fix_color',
-  'title', 'description', 'tools', 'source', 'text', 'color', 'colors', 'author', 'studio', 'type', 'ax', 'ay', 'created_at'];
+  'title', 'description', 'tools', 'source', 'text', 'color', 'colors', 'author', 'user_id', 'studio', 'type', 'ax', 'ay', 'created_at'];
 
 // D1 builds the JSON for the whole wall itself, so the Worker never has to
 // parse hundreds of rows (free Workers get 10ms of CPU per request).
 const ALL_PINS = `SELECT json_group_array(json_object(${COLUMNS.map((c) => `'${c}', ${c === 'colors' ? 'json(colors)' : c}`).join(', ')})) AS pins
   FROM (SELECT * FROM pins WHERE deleted_at IS NULL ORDER BY created_at)`;
+
+// A TV only ever gets what's for the TVs: approved work, Social, and their notes.
+const TV_PINS = ALL_PINS.replace('WHERE deleted_at IS NULL', `WHERE deleted_at IS NULL AND (type IN ('public', 'social')
+  OR (kind = 'comment' AND parent_id IN (SELECT id FROM pins WHERE type IN ('public', 'social'))))`);
 
 async function getPin(env, id) {
   const row = await env.DB.prepare('SELECT * FROM pins WHERE id = ? AND deleted_at IS NULL').bind(id).first();
@@ -134,7 +139,7 @@ function place(body) {
   return { ax: share(body.ax), ay: share(body.ay) };
 }
 
-async function createPin(body, env) {
+async function createPin(body, env, me) {
   const kind = body.kind;
   const origin = ORIGINS.includes(body.origin) ? body.origin : 'studio';
   // Work imported from the website can carry an older date so "newest" stays honest.
@@ -143,7 +148,9 @@ async function createPin(body, env) {
     id: newId(), kind, origin, parent_id: null, src: null, thumb: null, nat_w: null, nat_h: null, size: null,
     rot: 0, fix: null, fix_color: null, title: null, tools: null, text: null, color: null, colors: cleanColors(body.colors),
     type: 'public', ax: null, ay: null,
-    author: clean(body.author, NAME_MAX) || null,
+    // Signed in, it's whoever's signed in; otherwise the name they gave.
+    author: me ? me.first || me.name : clean(body.author, NAME_MAX) || null,
+    user_id: me?.id || null,
     studio: null, // no longer asked: Pinboard isn't tied to either studio
     created_at: when,
   };
@@ -266,123 +273,33 @@ async function serveFile(request, env, ctx, name) {
   return res;
 }
 
-// ---------------------------------------------------------------- passcode (optional)
-
-const enc = (s) => new TextEncoder().encode(s);
-
-async function tokenFor(env) {
-  const digest = await crypto.subtle.digest('SHA-256', enc(`pinboard:${env.PINBOARD_PASSCODE}`));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function cookie(request, name) {
-  const match = (request.headers.get('cookie') || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-  return match ? match[1] : '';
-}
-
-async function sameSecret(a, b) {
-  const [ha, hb] = await Promise.all([crypto.subtle.digest('SHA-256', enc(a)), crypto.subtle.digest('SHA-256', enc(b))]);
-  return crypto.subtle.timingSafeEqual(ha, hb);
-}
-
-async function authed(request, env) {
-  if (!env.PINBOARD_PASSCODE) return true;
-  return sameSecret(cookie(request, 'pb'), await tokenFor(env));
-}
-
-// The way in, before anything else: the leaf in one of the brand colours (a
-// different one each time), the name, one field. A wrong password gets a
-// shake and a word. Afterwards it goes back where you were headed, so a TV
-// opened on /?tv=1 lands in TV mode.
-const attr = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-
-const GATE_CSS = `
-@font-face { font-family: "PP Neue Montreal"; src: url("/fonts/PPNeueMontreal-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Quarto"; src: url("/fonts/Quarto-MediumItalic.woff2") format("woff2"); font-weight: 500; font-style: italic; font-display: swap; }
-* { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
-body { display: grid; place-items: center; padding: 16px 16px 9vh; background: #F2F2F2; color: #171717; font: 400 16px/1.4 "PP Neue Montreal", "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-.gate { display: flex; flex-direction: column; align-items: center; width: min(340px, 100%); text-align: center; animation: rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.gate__leaf { width: 76px; height: 76px; background: var(--c); -webkit-mask: url("/brand/leaf.svg") center / contain no-repeat; mask: url("/brand/leaf.svg") center / contain no-repeat; }
-h1 { margin: 26px 0 0; font-size: 44px; font-weight: 400; letter-spacing: -0.035em; line-height: 1; }
-p { margin: 10px 0 0; color: #8B8B8B; font-size: 17px; letter-spacing: -0.01em; }
-em { font-family: "Quarto", Georgia, serif; font-size: 1.1em; font-style: italic; font-weight: 500; color: #171717; }
-form { width: 100%; margin-top: 40px; }
-.gate__field { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 22px; background: #fff; border-radius: 999px; box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06), 0 14px 30px -18px rgba(23, 23, 23, 0.3); transition: box-shadow 0.2s; }
-.gate__field:focus-within { box-shadow: 0 0 0 1.5px #171717, 0 14px 30px -18px rgba(23, 23, 23, 0.3); }
-input { flex: 1; min-width: 0; height: 44px; padding: 0; border: 0; outline: 0; background: none; color: inherit; font: inherit; font-size: 17px; letter-spacing: 0.01em; }
-input::placeholder { color: #A2A2A2; }
-button { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: #171717; color: #F2F2F2; cursor: pointer; transition: transform 0.2s cubic-bezier(0.3, 1.6, 0.5, 1); }
-button:hover { transform: translateX(2px); }
-button:active { transform: scale(0.92); }
-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.gate__error { min-height: 1.4em; margin-top: 14px; color: #171717; font-size: 15px; }
-.gate.is-wrong { animation: none; }
-.is-wrong .gate__field { animation: shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
-@keyframes shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
-@media (prefers-reduced-motion: reduce) { .gate, .is-wrong .gate__field { animation: none; } }
-`;
-
-const GATE = ({ error = '', next = '/' } = {}) => `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow"><meta name="theme-color" content="#F2F2F2">
-<title>Pinboard</title><link rel="icon" href="/brand/leaf.png">
-<style>${GATE_CSS}</style></head>
-<body style="--c:${COMMENT_COLOURS[Math.floor(Math.random() * COMMENT_COLOURS.length)]}">
-<main class="gate${error ? ' is-wrong' : ''}">
-<div class="gate__leaf" role="img" aria-label="Potting Shed"></div>
-<h1>Pinboard</h1>
-<p>Potting Shed’s studio <em>wall</em></p>
-<form method="post" action="/login">
-<input type="hidden" name="next" value="${attr(next)}">
-<label class="gate__field"><span class="sr">Password</span>
-<input name="passcode" type="password" placeholder="Password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus required>
-<button type="submit" aria-label="Open the wall"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-</label>
-<p class="gate__error" role="alert">${error}</p>
-</form>
-</main>
-</body></html>`;
-
-const html = (body, status = 200) => new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': NOINDEX } });
-
-// Only ever back to somewhere on Pinboard itself.
-const nextOf = (v) => (/^\/(?![/\\])/.test(v || '') && !v.startsWith('/login') ? v : '/');
-
-async function login(request, env, url) {
-  const next = nextOf(request.method === 'POST' ? null : url.searchParams.get('next'));
-  if (!env.PINBOARD_PASSCODE || (request.method !== 'POST' && (await authed(request, env)))) return Response.redirect(new URL(next, request.url), 302);
-  if (request.method !== 'POST') return html(GATE({ next }));
-  const form = await request.formData();
-  const to = nextOf(String(form.get('next') || ''));
-  if (!(await sameSecret(String(form.get('passcode') || ''), env.PINBOARD_PASSCODE))) {
-    await new Promise((r) => setTimeout(r, 800)); // slow down guessing
-    return html(GATE({ error: 'That’s not it.', next: to }), 401);
-  }
-  return new Response(null, {
-    status: 303,
-    headers: { Location: to, 'Set-Cookie': `pb=${await tokenFor(env)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=34560000` },
-  });
-}
-
 // ---------------------------------------------------------------- routes
 
-async function api(request, env, ctx, url) {
+// w: who's asking (auth.js); me: their account, when they're signed in.
+async function api(request, env, ctx, url, w, me) {
   const { pathname } = url;
   const method = request.method;
+  // A TV can look, and read colours, but change nothing.
+  if (w.tv && method !== 'GET' && !/\/colors$/.test(pathname)) throw new HttpError(403, 'TVs can only look');
 
   if (pathname === '/api/config' && method === 'GET') {
     return json({
       commentColours: COMMENT_COLOURS, commentMax: COMMENT_MAX, titleMax: TITLE_MAX, descriptionMax: DESCRIPTION_MAX,
       maxUploadMB: maxUpload(env) / 1024 / 1024,
+      accounts: withAccounts(env, request),
+      me: me ? { id: me.id, name: me.name, first: me.first, email: me.email, picture: me.picture } : null,
+      tv: !!w.tv,
     });
   }
 
+  // A link that opens Pinboard in TV mode on any screen, with no one signing in.
+  if (pathname === '/api/tv-link' && method === 'GET') {
+    if (!me) throw new HttpError(403, 'Sign in first');
+    return json({ path: await tvLink(env) }); // the page adds its own address
+  }
+
   if (pathname === '/api/pins' && method === 'GET') {
-    const row = await env.DB.prepare(ALL_PINS).first();
+    const row = await env.DB.prepare(w.tv ? TV_PINS : ALL_PINS).first();
     return new Response(`{"pins":${row?.pins || '[]'}}`, {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': NOINDEX },
     });
@@ -406,7 +323,7 @@ async function api(request, env, ctx, url) {
   if (pathname === '/api/upload/finish' && method === 'POST') return uploadFinish(request, env);
 
   if (pathname === '/api/pins' && method === 'POST') {
-    const pin = await createPin(await readJSON(request), env);
+    const pin = await createPin(await readJSON(request), env, me);
     await env.DB.prepare(`INSERT INTO pins (${COLUMNS.join(', ')}) VALUES (${COLUMNS.map(() => '?').join(', ')})`)
       .bind(...COLUMNS.map((c) => pin[c] ?? null)).run();
     const saved = await getPin(env, pin.id);
@@ -425,11 +342,21 @@ async function api(request, env, ctx, url) {
 
   const m = /^\/api\/pins\/([a-z0-9]+)$/.exec(pathname);
 
+  // Signed in, only whoever pinned a piece can change it or take it down
+  // (anything pinned before there were accounts, by no one in particular, is
+  // still anyone's). Notes can still be moved about by anyone.
+  const mine = async (id) => {
+    if (!me) return;
+    const row = await env.DB.prepare('SELECT user_id FROM pins WHERE id = ?').bind(id).first();
+    if (row?.user_id && row.user_id !== me.id) throw new HttpError(403, 'Only whoever pinned it can change that');
+  };
+
   // Changing something afterwards: a piece's type, description, tools or source, or
   // where a sticky note sits on its piece.
   if (m && method === 'PATCH') {
     const body = await readJSON(request);
     const note = place(body);
+    if (!note) await mine(m[1]);
     const sets = [];
     const values = [];
     if (note) {
@@ -453,6 +380,7 @@ async function api(request, env, ctx, url) {
 
   // Taking something down hides it (and its comments); the files stay in R2.
   if (m && method === 'DELETE') {
+    await mine(m[1]);
     const { meta } = await env.DB.prepare('UPDATE pins SET deleted_at = ? WHERE (id = ? OR parent_id = ?) AND deleted_at IS NULL')
       .bind(Date.now(), m[1], m[1]).run();
     if (!meta.changes) throw new HttpError(404, 'Not found');
@@ -467,8 +395,8 @@ async function api(request, env, ctx, url) {
     const name = clean(body.name, BOARD_NAME_MAX);
     if (!name) throw new HttpError(400, 'Give the board a name');
     const id = newId();
-    await env.DB.prepare('INSERT INTO boards (id, name, author, created_at) VALUES (?, ?, ?, ?)')
-      .bind(id, name, clean(body.author, NAME_MAX) || null, Date.now()).run();
+    await env.DB.prepare('INSERT INTO boards (id, name, author, user_id, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(id, name, me ? me.first || me.name : clean(body.author, NAME_MAX) || null, me?.id || null, Date.now()).run();
     return boardChanged(env, ctx, id, 201);
   }
 
@@ -487,7 +415,7 @@ async function api(request, env, ctx, url) {
     return json({ ok: true });
   }
   if (b && b[2] && method === 'PUT') {
-    const author = clean((await readJSON(request)).author, NAME_MAX) || null;
+    const author = me ? me.first || me.name : clean((await readJSON(request)).author, NAME_MAX) || null;
     const ok = await env.DB.prepare(`SELECT (SELECT 1 FROM boards WHERE id = ? AND deleted_at IS NULL) AS board,
       (SELECT 1 FROM pins WHERE id = ? AND deleted_at IS NULL AND kind != 'comment') AS pin`).bind(b[1], b[2]).first();
     if (!ok?.board) throw new HttpError(404, 'That board’s gone');
@@ -509,16 +437,23 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
     try {
-      if (pathname === '/login') return await login(request, env, url);
+      const signing = await route(request, env, url);
+      if (signing) return signing;
+      const w = await who(request, env);
       // The page itself comes through here first (run_worker_first), so the
-      // gate is the first thing anyone sees, not a flash of the wall.
+      // way in is the first thing anyone sees, not a flash of the wall.
       if (pathname === '/' || pathname === '/index.html') {
-        if (!(await authed(request, env))) return html(GATE({ next: nextOf(pathname + url.search) }));
+        if (!w) return gate(request, env, url, { next: nextOf(pathname + url.search) });
+        if (w.tv && !url.searchParams.has('tv')) return Response.redirect(new URL('/?tv=1', url), 302); // a TV stays a TV
         return env.ASSETS.fetch(request);
       }
-      if (!(await authed(request, env))) return json({ error: 'Locked' }, 401);
+      if (!w) return json({ error: 'Locked' }, 401);
       if (pathname.startsWith('/files/')) return await serveFile(request, env, ctx, pathname.slice(7));
-      if (pathname.startsWith('/api/')) return await api(request, env, ctx, url);
+      if (pathname.startsWith('/api/')) {
+        const me = await userOf(env, w);
+        if (w.id && !me) return json({ error: 'Locked' }, 401); // an account that's gone
+        return await api(request, env, ctx, url, w, me);
+      }
       return new Response('Not found', { status: 404, headers: { 'X-Robots-Tag': NOINDEX } });
     } catch (err) {
       if (!(err instanceof HttpError)) console.error(err);

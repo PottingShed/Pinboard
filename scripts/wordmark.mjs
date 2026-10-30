@@ -1,5 +1,6 @@
-// Builds the "pinboard" wordmark that signs Pinboard's own sticky notes, out
-// of the Potting Shed logo's own outlines, so it's unmistakably the same hand.
+// Builds the "pinboard" wordmark (on Pinboard's own sticky notes and the
+// way-in page) out of the Potting Shed logo's own outlines, so it's
+// unmistakably the same hand. Its b also makes the pb. monogram (monogram.mjs).
 //
 // The logo has p, i (with its leaf for a dot), n, o and d, and those are used
 // exactly as drawn. The rest are made from them, following how the logo is
@@ -26,7 +27,8 @@
 // ones, because the white around a curve looks bigger than the same gap
 // between two stems (see GAPS).
 //
-//   node scripts/wordmark.mjs        (writes public/brand/pinboard.svg)
+//   node scripts/wordmark.mjs   (writes public/brand/pinboard.svg, in black, and
+//                                pinboard-white.svg, for brand colours)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -306,11 +308,14 @@ export function bandBox(subs) {
 // The gap after each letter, between its body and the next one's (less than
 // nothing means they overlap). Measured as the white between letters
 // (between the x-height and the baseline, 14 units deep), against the logo's
-// own pairs: p i and the r d have the logo's average (about 806 square
-// units), the straight pairs n b and a r are as tight as the logo's own i n
-// (595), and the round ones, b o a, just touch. The i n is the logo's own.
-// Version 9 of the ten tried (Luke, 30 Oct 2026).
-export const GAPS = { p: 6.06, i: 8.63, n: 4.54, b: 0, o: 0, a: 5.74, r: -0.42 };
+// own pairs: the r d has the logo's average (about 806 square units), the
+// straight pairs n b and a r are as tight as the logo's own i n (595) and the
+// same as each other, and the round ones, b o a, overlap by a unit so they
+// join rather than meet at a point. The i n is 6.06, tighter than the logo's
+// own 8.63 as the i's leaf already opens the space above it, and the p sits a
+// touch closer still (the curve of its bowl leaves more white than a stem).
+// Version 9 of the ten tried, then refined by eye (Luke, 30 Oct 2026).
+export const GAPS = { p: 4.7, i: 6.06, n: 5.74, b: -1, o: -1, a: 5.74, r: -0.42 };
 
 const fmt = (v) => String(+v.toFixed(3));
 function svgPath(subs) {
@@ -335,9 +340,17 @@ export function build({ gaps = GAPS, rCut, word = 'pinboard' } = {}) {
   const height = 114.5;
   // One outline per letter, so letters that touch or overlap just join.
   const paths = placed.map((subs) => `<path fill-rule="evenodd" d="${svgPath(move(subs, -x0))}"/>`).join('\n');
+  // The same, letter by letter, with the i's leaf on its own, for animating.
+  const parts = [];
+  [...word].forEach((ch, k) => {
+    const subs = move(placed[k], -x0);
+    if (ch === 'i') parts.push({ ch, d: svgPath(subs.slice(0, 1)) }, { ch: 'leaf', d: svgPath(subs.slice(1)) });
+    else parts.push({ ch, d: svgPath(subs) });
+  });
   return {
     width,
     paths,
+    parts,
     svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" fill="#171717">
 <title>Pinboard</title>
 ${paths}
@@ -349,5 +362,14 @@ ${paths}
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { svg, width } = build();
   fs.writeFileSync(path.join(BRAND, 'pinboard.svg'), svg);
-  console.log(`public/brand/pinboard.svg, ${width} × 114.5`);
+  fs.writeFileSync(path.join(BRAND, 'pinboard-white.svg'), svg.replace('fill="#171717"', 'fill="#F2F2F2"'));
+  // For the way-in page, which animates it in letter by letter (worker/auth.js).
+  const { parts } = build();
+  let k = 0;
+  const inline = `<svg class="wm" viewBox="0 0 ${width} 114.5" fill="currentColor" aria-hidden="true">${parts.map((p) => (p.ch === 'leaf'
+    ? `<path class="wm__leaf" d="${p.d}"/>`
+    : `<path class="wm__l" style="--k:${k++}" fill-rule="evenodd" d="${p.d}"/>`)).join('')}</svg>`;
+  fs.writeFileSync(path.resolve(BRAND, '..', '..', 'worker', 'wordmark.js'),
+    `// Made by scripts/wordmark.mjs (don't edit by hand): the pinboard wordmark,\n// letter by letter with the i's leaf on its own, for the way-in page to animate.\nexport const WORDMARK = ${JSON.stringify(inline)};\n`);
+  console.log(`public/brand/pinboard.svg and pinboard-white.svg, ${width} × 114.5, and worker/wordmark.js`);
 }
