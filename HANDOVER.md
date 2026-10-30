@@ -43,6 +43,7 @@ So nothing gets undone by accident:
 - **Add asks two things** (Luke, 30 Oct 2026): What is it (Our work, Inspo, Social) and, for our work, Work status (In progress, Approved). "Public" is called Approved everywhere; in the data it's still `public`, and In progress is `wip`.
 - **Show:** All (everything, Inspo included: the default), WIP, Approved, Inspo or Social.
 - **Tools used** (Luke, 30 Oct 2026): its own field, alongside the description, for our work and inspo (not Social), stored as a list ("Figma, After Effects"). Typing suggests the tools already on the wall so names stay consistent, and a tool typed in other capitals takes the wall's spelling. Tools already written into older descriptions stay there until someone moves them.
+- **Download** (Luke, 30 Oct 2026): in a piece's expanded view, for everyone, beside Full size. On phones it opens the share sheet (Save Image to Photos) for images; videos download.
 - **No size to pick** (Luke, 30 Oct 2026): the wall sizes each piece itself every time it's arranged, mostly medium, some small, some large, never bigger than the image has the pixels for. The same piece can come back a different size, which Luke's happy with. Older pieces' stored sizes are ignored.
 - **Studio agnostic** (Luke, 30 Oct 2026): nothing mentions Guernsey or Jersey, and Add doesn't ask for a studio. Older pieces keep theirs in the database, but it isn't shown.
 - **Defaults:** wall view, newest first, All, video on, notes on. Video and notes can be turned off per person.

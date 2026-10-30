@@ -790,6 +790,7 @@ function openFocus(p, writing = false) {
   renderComments();
   $('#comment-name').value = state.me?.name || '';
   $('#focus-open').href = fileUrl(p.src);
+  setDownload(p);
   $('#focus-count').textContent = showing.length > 1 ? `${showing.findIndex((q) => q.id === p.id) + 1} / ${showing.length}` : '';
   resetRemove();
   $('#focus-remove').hidden = !yours(p);
@@ -848,6 +849,39 @@ $('#describe-form').addEventListener('submit', async (e) => {
   } catch (err) {
     toast(err.message);
   }
+});
+
+// Download: the file as it was pinned, named after the piece. On a phone the
+// share sheet comes up instead, as that's where Save Image and Save Video
+// are (a plain download there ends up in Files). The share has to start the
+// moment it's tapped, so an image is fetched as the piece opens; a video,
+// which can be big, just downloads.
+let shareable = null;
+function fileName(p) {
+  const name = (p.title || '').normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase().slice(0, 60);
+  return `${name || 'pinboard'}${(p.src || '').match(/\.[a-z0-9]+$/i)?.[0] || ''}`;
+}
+function setDownload(p) {
+  const a = $('#focus-download');
+  a.href = fileUrl(p.src);
+  a.download = fileName(p);
+  shareable = null;
+  if (p.kind !== 'image' || !navigator.canShare || !matchMedia('(hover: none) and (pointer: coarse)').matches) return;
+  fetch(fileUrl(p.src)).then((r) => (r.ok ? r.blob() : null)).then((blob) => {
+    if (!blob || focusId !== p.id) return;
+    const file = new File([blob], fileName(p), { type: blob.type });
+    if (navigator.canShare({ files: [file] })) shareable = { id: p.id, file };
+  }).catch(() => {});
+}
+$('#focus-download').addEventListener('click', (e) => {
+  if (shareable?.id !== focusId) return; // an ordinary download
+  e.preventDefault();
+  const { file } = shareable;
+  navigator.share({ files: [file] }).catch((err) => {
+    if (err.name === 'AbortError') return; // they closed the sheet
+    shareable = null;
+    $('#focus-download').click();
+  });
 });
 
 // What it is, changeable any time: work in progress gets approved, say.
