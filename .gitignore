@@ -3,3 +3,5 @@
 .dev.vars
 /data/
 .DS_Store
+# The launch film's working folder: licensed music, other people's work, team photos
+/promo/

@@ -405,7 +405,7 @@ export function gate(request, env, url, { next = '/', error = '' } = {}, status 
 <meta property="og:title" content="Pinboard"><meta property="og:description" content="Potting Shed’s studio wall.">
 <meta property="og:image" content="${share}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${share}">
-<link rel="icon" href="/brand/leaf.png">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/brand/favicon-32.png" sizes="32x32" type="image/png"><link rel="icon" href="/brand/favicon-16.png" sizes="16x16" type="image/png">
 <link rel="preload" href="/fonts/PPNeueMontreal-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="prefetch" href="/brand/pinboard-white.svg"><link rel="prefetch" href="/brand/leaf.svg">
 <style>${CSS}</style>

@@ -528,15 +528,41 @@ function showAccount() {
 $('#signout-btn').addEventListener('click', () => { location.href = '/auth/signout'; });
 
 // Just signed in, the way-in page is still showing, as a curtain: once the
-// wall's drawn, it lifts away to show it.
+// wall's drawn, it lifts away to show it. Its bottom edge moves like something
+// thick and liquid: the middle hangs back by how fast it's going, on a spring,
+// so it sags as it speeds up, catches up, and springs back a little as it
+// goes. The wordmark's dragged along by the sag, a touch behind.
 function liftCurtain() {
   const curtain = $('.curtain');
   if (!document.documentElement.classList.contains('curtained')) return curtain.remove();
-  const done = () => { curtain.remove(); document.documentElement.classList.remove('curtained'); };
+  const done = () => { curtain.remove(); $('.curtain__shape')?.remove(); document.documentElement.classList.remove('curtained'); };
   setTimeout(() => {
-    curtain.classList.add('up');
-    curtain.addEventListener('transitionend', (e) => { if (e.target === curtain) done(); });
     setTimeout(done, 2500); // in case it never gets to run (a hidden tab)
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      curtain.classList.add('up');
+      curtain.addEventListener('transitionend', done);
+      return;
+    }
+    const edge = $('#curtain-edge'), leaf = $('.curtain__leaf'), mark = $('.curtain img');
+    const D = 1.1; // seconds
+    const lift = (t) => (t < 0.5 ? 8 * t ** 4 : 1 - (2 - 2 * t) ** 4 / 2); // cubic-bezier(0.76, 0, 0.24, 1)
+    const speed = (t) => (t < 0.5 ? 32 * t ** 3 : 4 * (2 - 2 * t) ** 3) / D; // screens a second
+    const start = performance.now();
+    let then = start, sag = 0, give = 0;
+    const frame = (now) => {
+      const t = Math.min(1, (now - start) / 1000 / D);
+      const dt = Math.min(0.05, (now - then) / 1000);
+      then = now;
+      give += (170 * (0.035 * speed(t) - sag) - 16 * give) * dt;
+      sag += give * dt;
+      const up = lift(t), e = 1 - up, low = e + sag * 1.33, h = innerHeight;
+      edge.setAttribute('d', `M0 0H1V${e}C0.7 ${low} 0.3 ${low} 0 ${e}Z`);
+      leaf.style.transform = `translateY(${-up * h}px)`;
+      mark.style.transform = `translateY(${(-0.86 * up + 0.6 * sag) * h}px)`;
+      if (t < 1 || e + sag > 0) requestAnimationFrame(frame);
+      else done();
+    };
+    requestAnimationFrame(frame);
   }, 350);
 }
 $('#tvlink-btn').addEventListener('click', async () => {

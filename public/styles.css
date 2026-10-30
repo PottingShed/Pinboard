@@ -1307,16 +1307,14 @@ em { font-family: var(--serif); font-style: italic; font-weight: 500; }
 
 /* Just signed in: the way-in page carries on as a curtain, in the same colour
    with the leaf and the wordmark just where they were, then lifts away to show
-   the wall, the wordmark lagging a little behind. */
-.curtain { display: none; position: fixed; inset: 0; z-index: 1000; grid-template-rows: auto 1fr; align-items: end; padding: clamp(16px, 3.4vw, 44px); overflow: hidden; background: var(--curtain, var(--ink)); }
+   the wall. It's cut to a shape whose bottom edge main.js moves (liftCurtain),
+   so the edge can hang back like something liquid as it goes. */
+.curtain { display: none; position: fixed; inset: 0; z-index: 1000; grid-template-rows: auto 1fr; align-items: end; padding: clamp(16px, 3.4vw, 44px); overflow: hidden; background: var(--curtain, var(--ink)); -webkit-clip-path: url(#curtain-shape); clip-path: url(#curtain-shape); }
+.curtain__shape { position: absolute; }
 .curtained .curtain { display: grid; }
 .curtain__leaf { align-self: start; width: clamp(69px, 7.5vw, 96px); aspect-ratio: 1; background: var(--paper); -webkit-mask: url("brand/leaf.svg") center / contain no-repeat; mask: url("brand/leaf.svg") center / contain no-repeat; }
 .curtain img { display: block; width: 100%; height: auto; }
-.curtain.up { transform: translateY(-100%); transition: transform 1.1s cubic-bezier(0.76, 0, 0.24, 1); }
-.curtain.up img { transform: translateY(14vh); transition: transform 1.1s cubic-bezier(0.76, 0, 0.24, 1); }
-@media (prefers-reduced-motion: reduce) {
-  .curtain.up, .curtain.up img { transform: none; opacity: 0; transition: opacity 0.4s; }
-}
+.curtain.up { opacity: 0; transition: opacity 0.4s; } /* when motion's reduced, it just fades */
 
 /* ------------------------------------------------------------------ small screens */
 

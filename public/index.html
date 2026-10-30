@@ -14,7 +14,9 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#F2F2F2">
-  <link rel="icon" href="brand/leaf.png">
+  <link rel="icon" href="brand/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="brand/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="brand/favicon-16.png" sizes="16x16" type="image/png">
   <!-- On a phone's home screen it's an app: its own icon, its own window. Each
        phone's icon is a brand colour picked at random the first time it opens
        Pinboard, and kept, so the icons round the studio all differ. The
@@ -49,6 +51,7 @@
   </script>
 </head>
 <body>
+  <svg class="curtain__shape" width="0" height="0" aria-hidden="true"><clipPath id="curtain-shape" clipPathUnits="objectBoundingBox"><path id="curtain-edge" d="M0 0H1V1H0Z"/></clipPath></svg>
   <div class="curtain" aria-hidden="true"><i class="curtain__leaf"></i><img src="brand/pinboard-white.svg" alt=""></div>
   <main class="wall" id="wall" aria-label="The wall"></main>
   <main class="grid" id="grid" aria-label="The grid" hidden></main>
