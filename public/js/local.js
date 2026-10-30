@@ -71,6 +71,12 @@ export async function localPins() {
 
 // Stand-ins for the live API's create, change and take-down, for this browser only.
 const clean = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+const cleanTools = (v) => {
+  if (typeof v !== 'string') return null;
+  const seen = new Set();
+  const tools = v.split(',').map((t) => clean(t, 40)).filter((t) => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+  return tools.length ? tools.slice(0, 12).join(', ') : null;
+};
 const cleanText = (v, max) => (typeof v === 'string' ? v.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, max) : '');
 const TYPES = ['public', 'wip', 'inspo', 'social'];
 // Where a sticky note sits on its piece, as on the live site.
@@ -86,7 +92,7 @@ export async function createPin(body) {
   const base = {
     id, kind: body.kind, origin: 'studio', parent_id: null,
     src: null, thumb: null, nat_w: null, nat_h: null, size: null, rot: 0, fix: null, fix_color: null,
-    title: null, description: null, source: null, text: null, color: null, colors: body.colors || null,
+    title: null, description: null, tools: null, source: null, text: null, color: null, colors: body.colors || null,
     author: clean(body.author, 40) || null, studio: null, type: 'public', ax: null, ay: null, created_at: Date.now(),
   };
   let pin;
@@ -100,6 +106,7 @@ export async function createPin(body) {
       src: body.src, thumb: body.thumb || null, nat_w: body.nat_w, nat_h: body.nat_h, size: null,
       title: clean(body.title, 80) || null,
       description: cleanText(body.description, 400) || null,
+      tools: cleanTools(body.tools),
       source: body.type === 'inspo' ? clean(body.source, 300) || null : null,
       type: TYPES.includes(body.type) ? body.type : 'wip',
     };
@@ -115,6 +122,7 @@ export async function updatePin(id, changes) {
   if (TYPES.includes(changes.type)) pin.type = changes.type;
   Object.assign(pin, place(changes));
   if (typeof changes.description === 'string') pin.description = cleanText(changes.description, 400) || null;
+  if (typeof changes.tools === 'string') pin.tools = cleanTools(changes.tools);
   await ask('pins', 'readwrite', (s) => s.put(pin));
   return pin;
 }

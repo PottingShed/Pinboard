@@ -54,6 +54,16 @@ const cleanText = (v, max) => (typeof v === 'string'
   ? v.replace(/\r/g, '').split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, max)
   : '');
 
+// What a piece was made with, as a list: "Figma, After Effects". Each tool
+// once (whatever the capitals), at most 12 of them.
+const TOOLS_MAX = 12;
+function cleanTools(v) {
+  if (typeof v !== 'string') return null;
+  const seen = new Set();
+  const tools = v.split(',').map((t) => clean(t, 40)).filter((t) => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+  return tools.length ? tools.slice(0, TOOLS_MAX).join(', ') : null;
+}
+
 function newId() {
   const bytes = crypto.getRandomValues(new Uint8Array(4));
   return Date.now().toString(36) + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -72,7 +82,7 @@ function cleanColors(colors) {
 // ---------------------------------------------------------------- database
 
 const COLUMNS = ['id', 'kind', 'origin', 'parent_id', 'src', 'thumb', 'nat_w', 'nat_h', 'size', 'rot', 'fix', 'fix_color',
-  'title', 'description', 'source', 'text', 'color', 'colors', 'author', 'studio', 'type', 'ax', 'ay', 'created_at'];
+  'title', 'description', 'tools', 'source', 'text', 'color', 'colors', 'author', 'studio', 'type', 'ax', 'ay', 'created_at'];
 
 // D1 builds the JSON for the whole wall itself, so the Worker never has to
 // parse hundreds of rows (free Workers get 10ms of CPU per request).
@@ -131,7 +141,7 @@ async function createPin(body, env) {
   const when = FROM_WEBSITE.includes(origin) && Number.isFinite(body.created_at) ? body.created_at : Date.now();
   const base = {
     id: newId(), kind, origin, parent_id: null, src: null, thumb: null, nat_w: null, nat_h: null, size: null,
-    rot: 0, fix: null, fix_color: null, title: null, text: null, color: null, colors: cleanColors(body.colors),
+    rot: 0, fix: null, fix_color: null, title: null, tools: null, text: null, color: null, colors: cleanColors(body.colors),
     type: 'public', ax: null, ay: null,
     author: clean(body.author, NAME_MAX) || null,
     studio: null, // no longer asked: Pinboard isn't tied to either studio
@@ -148,6 +158,7 @@ async function createPin(body, env) {
       nat_h: Math.max(1, Math.round(Number(body.nat_h) || 3)),
       title: clean(body.title, TITLE_MAX) || null,
       description: cleanText(body.description, DESCRIPTION_MAX) || null,
+      tools: cleanTools(body.tools),
       source: type === 'inspo' ? clean(body.source, 300) || null : null,
       type,
     };
@@ -414,7 +425,7 @@ async function api(request, env, ctx, url) {
 
   const m = /^\/api\/pins\/([a-z0-9]+)$/.exec(pathname);
 
-  // Changing something afterwards: a piece's type, description or source, or
+  // Changing something afterwards: a piece's type, description, tools or source, or
   // where a sticky note sits on its piece.
   if (m && method === 'PATCH') {
     const body = await readJSON(request);
@@ -428,6 +439,7 @@ async function api(request, env, ctx, url) {
       const type = typeOf(body);
       if (type) { sets.push('type = ?'); values.push(type); }
       if (typeof body.description === 'string') { sets.push('description = ?'); values.push(cleanText(body.description, DESCRIPTION_MAX) || null); }
+      if (typeof body.tools === 'string') { sets.push('tools = ?'); values.push(cleanTools(body.tools)); }
       if (typeof body.source === 'string') { sets.push('source = ?'); values.push(clean(body.source, 300) || null); }
     }
     if (!sets.length) throw new HttpError(400, 'Nothing to change');

@@ -513,6 +513,48 @@ function rememberMe(name) {
 
 // ------------------------------------------------------------------ add media
 
+// ------------------------------------------------------------------ tools
+
+// What a piece was made with: "Figma, After Effects". Typing in a tools field
+// suggests the tools already on the wall, most used first, so everyone spells
+// them the same; a tool typed in different capitals takes the wall's.
+const splitTools = (s) => (s || '').split(',').map((t) => t.trim()).filter(Boolean);
+function knownTools() {
+  const seen = new Map();
+  for (const p of state.pins.values()) for (const t of splitTools(p.tools)) {
+    const k = t.toLowerCase();
+    seen.set(k, { name: seen.get(k)?.name || t, n: (seen.get(k)?.n || 0) + 1 });
+  }
+  return [...seen.values()].sort((a, b) => b.n - a.n).map((t) => t.name);
+}
+function tidyTools(s) {
+  const known = new Map(knownTools().map((t) => [t.toLowerCase(), t]));
+  return splitTools(s).map((t) => known.get(t.toLowerCase()) || t).join(', ');
+}
+function toolPicks(input, box) {
+  const show = () => {
+    const parts = input.value.split(',');
+    const typing = parts.at(-1).trim().toLowerCase();
+    const have = new Set(parts.slice(0, -1).map((t) => t.trim().toLowerCase()));
+    const picks = knownTools().filter((t) => { const k = t.toLowerCase(); return !have.has(k) && k !== typing && k.includes(typing); }).slice(0, 8);
+    box.replaceChildren(...picks.map((t) => h('button', { type: 'button', class: 'tool-pick' }, t)));
+    box.hidden = !picks.length;
+  };
+  input.addEventListener('input', show);
+  input.addEventListener('focus', show);
+  input.addEventListener('blur', () => { box.hidden = true; });
+  box.addEventListener('pointerdown', (e) => e.preventDefault()); // keep typing
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('.tool-pick');
+    if (!b) return;
+    input.value = `${[...splitTools(input.value.split(',').slice(0, -1).join(',')), b.textContent].join(', ')}, `;
+    input.focus();
+    show();
+  });
+}
+toolPicks($('#media-tools'), $('#media-tool-picks'));
+toolPicks($('#describe-tools'), $('#describe-tool-picks'));
+
 const mediaSheet = $('#media-sheet');
 const media = { items: [], busy: false };
 
@@ -595,6 +637,7 @@ function setType(type) {
 function showType() {
   const type = formType();
   $('#media-stage').hidden = !ourWork({ type });
+  $('#media-tools-field').hidden = type === 'social';
   $('#type-note').textContent = TYPES[type].note;
   $('#media-source-field').hidden = type !== 'inspo';
   $('#media-heading').replaceChildren('Add ', h('em', {}, HEADINGS[type] || 'work'));
@@ -632,6 +675,7 @@ mediaSheet.addEventListener('close', () => {
   media.items = [];
   $('#media-title').value = '';
   $('#media-description').value = '';
+  $('#media-tools').value = '';
   $('#media-source').value = '';
   renderPreviews();
 });
@@ -650,6 +694,7 @@ $('#media-form').addEventListener('submit', async (e) => {
   const title = $('#media-title').value;
   const description = $('#media-description').value;
   const type = formType();
+  const tools = type === 'social' ? '' : tidyTools($('#media-tools').value);
   const source = type === 'inspo' ? $('#media-source').value : '';
   keepType(type);
   const total = media.items.length;
@@ -662,7 +707,7 @@ $('#media-form').addEventListener('submit', async (e) => {
       const prepped = item.kind === 'image' ? await prepImage(item.file) : await prepVideo(item.file);
       const src = await uploadBlob(prepped.full, (f) => setMediaStatus(`Uploading${n} · ${Math.round(f * 100)}%`));
       const thumb = prepped.thumb ? await uploadBlob(prepped.thumb) : null;
-      last = await create({ kind: item.kind, src, thumb, nat_w: prepped.w, nat_h: prepped.h, title, description, colors: prepped.colors, type, source });
+      last = await create({ kind: item.kind, src, thumb, nat_w: prepped.w, nat_h: prepped.h, title, description, tools, colors: prepped.colors, type, source });
       if (state.board) await saveTo(state.board, last.id); // added while looking at a board: it goes on the board too
       URL.revokeObjectURL(item.url);
       media.items.shift();
@@ -764,11 +809,14 @@ function renderSource(p) {
     : p.source);
 }
 
-// A few lines about the piece, which anyone can add or tidy up later.
+// A few lines about the piece and what it was made with, which anyone can
+// add or tidy up later.
 function renderDescription(p) {
   $('#focus-description').textContent = p.description || '';
   $('#focus-description').hidden = false;
-  $('#focus-edit').textContent = p.description ? 'Edit description' : 'Add a description';
+  $('#focus-tools').replaceChildren(...splitTools(p.tools).map((t) => h('li', {}, t)));
+  $('#focus-tools').hidden = false;
+  $('#focus-edit').textContent = p.description || p.tools ? 'Edit description and tools' : 'Add a description and tools';
   $('#focus-edit').hidden = !yours(p);
   $('#describe-form').hidden = true;
 }
@@ -777,7 +825,9 @@ $('#focus-edit').addEventListener('click', () => {
   if (!p) return;
   $('#describe-text').value = p.description || '';
   $('#describe-text').maxLength = state.config.descriptionMax || 400;
+  $('#describe-tools').value = p.tools || '';
   $('#focus-description').hidden = true;
+  $('#focus-tools').hidden = true;
   $('#focus-edit').hidden = true;
   $('#describe-form').hidden = false;
   $('#describe-text').focus();
@@ -793,7 +843,7 @@ $('#describe-form').addEventListener('submit', async (e) => {
   const p = state.pins.get(focusId);
   if (!p) return;
   try {
-    Object.assign(p, await api(`/api/pins/${p.id}`, { method: 'PATCH', body: { description: $('#describe-text').value } }));
+    Object.assign(p, await api(`/api/pins/${p.id}`, { method: 'PATCH', body: { description: $('#describe-text').value, tools: tidyTools($('#describe-tools').value) } }));
     closeDescribe();
   } catch (err) {
     toast(err.message);
@@ -1176,7 +1226,7 @@ function onNewPin(p) {
   putUp(p, 'arrive'); // it just appears, no fanfare
 }
 
-// A piece changed type or description. A TV drops anything that's no longer for the TVs.
+// A piece changed type, description or tools. A TV drops anything that's no longer for the TVs.
 function onUpdated(p) {
   const mine = state.pins.get(p.id);
   if (!mine) return;

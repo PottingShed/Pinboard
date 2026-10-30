@@ -6,7 +6,7 @@ For Jamie, from Luke (27 Oct 2026), updated by Jamie and Luke (29 Oct 2026). `RE
 
 - **Live at https://pinboard.pottingshed.com** since 29 Oct 2026. The website work is on it (530 pieces, imported 29 Oct).
 - It's in the **Potting Shed** Cloudflare account (ID `d46ba8453fcdc412ec5078d42deb1af1`), the one that holds pottingshed.com's DNS. `wrangler.jsonc` names that account, so Wrangler always deploys there.
-  - D1 database `pinboard` (Western Europe), tables created (migrations 0001–0005; 0006 and 0007 go on with the next deploy).
+  - D1 database `pinboard` (Western Europe), tables created (migrations 0001–0005; 0006, 0007 and 0008 go on with the next deploy).
   - R2 bucket `pinboard-files`, holding the website work.
   - The custom domain made its own DNS record and certificate. The `workers.dev` address is switched off.
 - **Password gate:** built, and on as soon as the password is set (step 3). Until then anyone with the link can add and take down work.
@@ -15,7 +15,7 @@ For Jamie, from Luke (27 Oct 2026), updated by Jamie and Luke (29 Oct 2026). `RE
 ## To do
 
 1. **Set the password first** (Luke, 30 Oct 2026: one global password for everyone). Luke will give it to you; it isn't written here because the repo is public. Run `npx wrangler secret put PINBOARD_PASSCODE` and paste it. Doing this before the deploy means the new version is never live unlocked (the current one already asks for it). From then on the gate is the first thing anyone sees, and each phone, laptop and TV asks once and remembers it for about a year, so each TV needs it typed in once. Changing it later signs everyone out.
-2. **Deploy the latest** (types, sticky notes, the home-screen icons, the password gate): `npm run deploy`. It adds migrations 0006 (types) and 0007 (where notes sit) before publishing. Until then the live site runs the version before them.
+2. **Deploy the latest** (types, sticky notes, tools used, the home-screen icons, the password gate): `npm run deploy`. It adds migrations 0006 (types), 0007 (where notes sit) and 0008 (tools used) before publishing. Until then the live site runs the version before them.
 3. **Check it in a browser.**
    - Open https://pinboard.pottingshed.com: the password gate comes first. Then add a piece of each type (Our work in progress, Our work approved, Inspo, Social).
    - Stick a note on one from the wall (the note button, `N`, or a held finger on a phone), and drag it (on a phone, hold the note until it lifts first).
@@ -42,6 +42,7 @@ So nothing gets undone by accident:
 - **Four types** (29 Oct 2026): every piece is one of In progress (our work, studio only), Approved (our work, fine for anyone), Inspo (work we didn't make) or Social (life at Potting Shed). They replace Private/Public and the separate Inspiration section. Approved has plain tape; the others have coloured, labelled tape (yellow WIP, blue Inspo, pink Social).
 - **Add asks two things** (Luke, 30 Oct 2026): What is it (Our work, Inspo, Social) and, for our work, Work status (In progress, Approved). "Public" is called Approved everywhere; in the data it's still `public`, and In progress is `wip`.
 - **Show:** All (everything, Inspo included: the default), WIP, Approved, Inspo or Social.
+- **Tools used** (Luke, 30 Oct 2026): its own field, alongside the description, for our work and inspo (not Social), stored as a list ("Figma, After Effects"). Typing suggests the tools already on the wall so names stay consistent, and a tool typed in other capitals takes the wall's spelling. Tools already written into older descriptions stay there until someone moves them.
 - **No size to pick** (Luke, 30 Oct 2026): the wall sizes each piece itself every time it's arranged, mostly medium, some small, some large, never bigger than the image has the pixels for. The same piece can come back a different size, which Luke's happy with. Older pieces' stored sizes are ignored.
 - **Studio agnostic** (Luke, 30 Oct 2026): nothing mentions Guernsey or Jersey, and Add doesn't ask for a studio. Older pieces keep theirs in the database, but it isn't shown.
 - **Defaults:** wall view, newest first, All, video on, notes on. Video and notes can be turned off per person.

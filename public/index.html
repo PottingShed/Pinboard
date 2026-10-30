@@ -191,6 +191,11 @@
         <span>Description <small>optional</small></span>
         <textarea id="media-description" maxlength="400" rows="2" placeholder="What it is, what it’s for, what feedback would help"></textarea>
       </label>
+      <div class="field" id="media-tools-field">
+        <label for="media-tools"><span>Tools used <small>optional</small></span></label>
+        <input type="text" id="media-tools" maxlength="400" placeholder="e.g. Figma, After Effects, Midjourney" autocomplete="off" autocapitalize="words">
+        <div class="tool-picks" id="media-tool-picks" hidden></div>
+      </div>
       <label class="field">
         <span>Your name</span>
         <input type="text" id="media-name" maxlength="40" autocomplete="given-name" placeholder="So people know who pinned it">
@@ -261,10 +266,13 @@
       <h2 class="focus__title" id="focus-title"></h2>
       <div class="focus__about">
         <p class="focus__description" id="focus-description"></p>
+        <ul class="focus__tools" id="focus-tools" aria-label="Tools used"></ul>
         <p class="focus__source" id="focus-source" hidden></p>
         <button type="button" class="focus__edit" id="focus-edit">Add a description</button>
         <form class="focus__describe" id="describe-form" hidden novalidate>
           <textarea id="describe-text" maxlength="400" rows="4" aria-label="Description" placeholder="What it is, what it’s for, what feedback would help"></textarea>
+          <input type="text" id="describe-tools" maxlength="400" aria-label="Tools used" placeholder="Tools used, e.g. Figma, After Effects" autocomplete="off" autocapitalize="words">
+          <div class="tool-picks tool-picks--dark" id="describe-tool-picks" hidden></div>
           <div class="focus__describe-row">
             <button type="button" class="btn btn--line-light" id="describe-cancel">Cancel</button>
             <button type="submit" class="btn btn--accent">Save</button>
