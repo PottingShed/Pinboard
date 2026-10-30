@@ -1,12 +1,12 @@
 # Pinboard: handover
 
-For Jamie, from Luke (27 Oct 2026), updated by Jamie and Luke (29 Oct 2026). `README.md` has the full detail on what Pinboard does and how it's built; this note is where things stand and what's left.
+For Jamie, from Luke (27 Oct 2026), updated by Jamie and Luke (29 and 30 Oct 2026). `README.md` has the full detail on what Pinboard does and how it's built; this note is where things stand and what's left.
 
 ## Where it is
 
 - **Live at https://pinboard.pottingshed.com** since 29 Oct 2026. The website work is on it (530 pieces, imported 29 Oct).
 - It's in the **Potting Shed** Cloudflare account (ID `d46ba8453fcdc412ec5078d42deb1af1`), the one that holds pottingshed.com's DNS. `wrangler.jsonc` names that account, so Wrangler always deploys there.
-  - D1 database `pinboard` (Western Europe), tables created (migrations 0001–0005; 0006, 0007 and 0008 go on with the next deploy).
+  - D1 database `pinboard` (Western Europe), tables created (migrations 0001–0005; 0006 to 0009 go on with the next deploy).
   - R2 bucket `pinboard-files`, holding the website work.
   - The custom domain made its own DNS record and certificate. The `workers.dev` address is switched off.
 - **The way in:** the password page is on as soon as the password is set (step 1). Until then anyone with the link can add and take down work. Sign in with Google is built and switches on once someone with Google Workspace admin sets it up (step 4).
@@ -15,9 +15,9 @@ For Jamie, from Luke (27 Oct 2026), updated by Jamie and Luke (29 Oct 2026). `RE
 ## To do
 
 1. **Set the password first** (Luke, 30 Oct 2026: one global password for everyone). Luke will give it to you; it isn't written here because the repo is public. Run `npx wrangler secret put PINBOARD_PASSCODE` and paste it. Doing this before the deploy means the new version is never live unlocked (the current one already asks for it). From then on the gate is the first thing anyone sees, and each phone, laptop and TV asks once and remembers it for about a year, so each TV needs it typed in once. Changing it later signs everyone out.
-2. **Deploy the latest** (types, sticky notes, tools used, downloads, the home-screen icons, the way-in page, accounts): `npm run deploy`. It adds migrations 0006 (types), 0007 (where notes sit), 0008 (tools used) and 0009 (people) before publishing. Until then the live site runs the version before them.
+2. **Deploy the latest** (types, sticky notes, tools used, downloads, the home-screen icons, the way-in page and its liquid curtain, the pink pb. tab icon, accounts): `npm run deploy`. It adds migrations 0006 (types), 0007 (where notes sit), 0008 (tools used) and 0009 (people) before publishing. Until then the live site runs the version before them.
 3. **Check it in a browser.**
-   - Open https://pinboard.pottingshed.com: the password gate comes first. Then add a piece of each type (Our work in progress, Our work approved, Inspo, Social).
+   - Open https://pinboard.pottingshed.com: the password gate comes first, with the pink pb. icon in the tab. Once you're in, the page lifts away with a liquid edge to show the wall. Then add a piece of each type (Our work in progress, Our work approved, Inspo, Social).
    - Stick a note on one from the wall (the note button, `N`, or a held finger on a phone), and drag it (on a phone, hold the note until it lifts first).
    - On a phone, check that dragging anywhere moves round the wall, and that a flick glides on.
    - Sort by a colour.
