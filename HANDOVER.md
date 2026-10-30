@@ -14,15 +14,15 @@ For Jamie, from Luke (27 Oct 2026), updated by Jamie and Luke (29 Oct 2026). `RE
 
 ## To do
 
-1. **Deploy the latest** (types, sticky notes, the home-screen icons, the password gate): `npm run deploy`. It adds migrations 0006 (types) and 0007 (where notes sit) before publishing. Until then the live site runs the version before them.
-2. **Check it in a browser.**
-   - Open https://pinboard.pottingshed.com and add a piece of each type.
+1. **Set the password first** (Luke, 30 Oct 2026: one global password for everyone). Luke will give it to you; it isn't written here because the repo is public. Run `npx wrangler secret put PINBOARD_PASSCODE` and paste it. Doing this before the deploy means the new version is never live unlocked (the current one already asks for it). From then on the gate is the first thing anyone sees, and each phone, laptop and TV asks once and remembers it for about a year, so each TV needs it typed in once. Changing it later signs everyone out.
+2. **Deploy the latest** (types, sticky notes, the home-screen icons, the password gate): `npm run deploy`. It adds migrations 0006 (types) and 0007 (where notes sit) before publishing. Until then the live site runs the version before them.
+3. **Check it in a browser.**
+   - Open https://pinboard.pottingshed.com: the password gate comes first. Then add a piece of each type (Our work in progress, Our work approved, Inspo, Social).
    - Stick a note on one from the wall (the note button, `N`, or a held finger on a phone), and drag it (on a phone, hold the note until it lifts first).
    - On a phone, check that dragging anywhere moves round the wall, and that a flick glides on.
    - Sort by a colour.
    - Open `https://pinboard.pottingshed.com/?tv=1` on a second screen. Approved work and social photos you add should cut in there; work in progress and inspo shouldn't.
    - On an iPhone, Share → Add to Home Screen, and check the icon (a random brand colour, different from phone to phone) and that it opens full screen.
-3. **Set the password** (Luke, 30 Oct 2026: one global password for everyone). Luke will give it to you; it isn't written here because the repo is public. Run `npx wrangler secret put PINBOARD_PASSCODE` and paste it. From then on the gate is the first thing anyone sees, and each phone, laptop and TV asks once and remembers it for about a year, so each TV needs it typed in once. Changing it later signs everyone out.
 4. **Tidy up.**
    - Make the repo private once the GitHub Pages preview isn't needed (the fonts are licensed), and turn off Pages.
    - Delete `docs/` once the preview is gone.
@@ -36,7 +36,7 @@ So nothing gets undone by accident:
 
 - **The wall:** fills the screen and runs well past it, with the newest work in the middle. It's arranged fresh on every load, and you can't pan or zoom past the edge of the work.
 - **Sticky notes** (Harry's ask, 29 Oct 2026, replacing "no sticky notes"): comments show on the wall as sticky notes on their piece and follow it everywhere; there's no separate comments system. They're small and hang off the edge of the work (Luke likes the layering). The newest is on top of a little stack with a count. Any brand colour, black text. They're added from the work itself (the note button on a piece, `N`, or a held finger on a phone), not from the nav, and can be dragged round their piece (where they sit is saved; on a phone, hold one until it lifts, then drag). Zoomed far out they fold down to the dot.
-- **The pinboard wordmark** signs Pinboard's own notes and is used nowhere else. It's built from the logo's own outlines (p, i, n, o, d as drawn; b, a and r made from them by the logo's rules: one weight, bowls running into stems, arches springing from a notch, stem tops square with the top right corner rounded), and spaced to match the white between the logo's letters, so b, o and a join (Luke, 30 Oct 2026). `scripts/wordmark.mjs` explains each letter; ten spacing versions were tried, and the gaps are in `GAPS` there.
+- **The pinboard wordmark** signs Pinboard's own notes and is used nowhere else. It's built from the logo's own outlines (p, i, n, o, d as drawn; b, a and r made from them by the logo's rules: one weight, bowls running into stems, arches springing from a notch, stem tops square with the top right corner rounded), and spaced by the white between the logo's own letters: b, o and a just touch, and the straight pairs are as tight as the logo's i n. Luke picked this one (version 9 of ten tried, 30 Oct 2026). `scripts/wordmark.mjs` explains each letter, and the gaps are in `GAPS` there.
 - **On a phone, Add** offers the camera (photo or video) or the camera roll.
 - **On a phone, a finger moves round the wall**, wherever it lands, never a piece (Luke, 30 Oct 2026: otherwise it's too hard to get around). A flick glides on and slows, as a phone's own scrolling does. Shuffling pieces is a mouse thing.
 - **Four types** (29 Oct 2026): every piece is one of In progress (our work, studio only), Approved (our work, fine for anyone), Inspo (work we didn't make) or Social (life at Potting Shed). They replace Private/Public and the separate Inspiration section. Approved has plain tape; the others have coloured, labelled tape (yellow WIP, blue Inspo, pink Social).

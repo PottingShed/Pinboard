@@ -304,12 +304,13 @@ export function bandBox(subs) {
 }
 
 // The gap after each letter, between its body and the next one's (less than
-// nothing means they overlap). Matched to the white between the logo's own
-// letters (about 806 square units each, measured between the x-height and
-// the baseline, 14 units deep): that brings the three round ones, b o a,
-// together until they touch, so they overlap a little and join, as the
-// logo's t crosses its o. The i to n is the logo's own.
-export const GAPS = { p: 6.06, i: 8.63, n: 7.62, b: -1.5, o: -1.5, a: 8.82, r: -0.42 };
+// nothing means they overlap). Measured as the white between letters
+// (between the x-height and the baseline, 14 units deep), against the logo's
+// own pairs: p i and the r d have the logo's average (about 806 square
+// units), the straight pairs n b and a r are as tight as the logo's own i n
+// (595), and the round ones, b o a, just touch. The i n is the logo's own.
+// Version 9 of the ten tried (Luke, 30 Oct 2026).
+export const GAPS = { p: 6.06, i: 8.63, n: 4.54, b: 0, o: 0, a: 5.74, r: -0.42 };
 
 const fmt = (v) => String(+v.toFixed(3));
 function svgPath(subs) {
